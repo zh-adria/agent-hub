@@ -1,0 +1,59 @@
+{
+  "task_description": "生成 COLA 架构项目骨架代码 + Phase 1 详细技术设计文档",
+  "plan_file": "D:\\projects\\GenericAgent\\temp\\plan_agent-hub-scaffold\\plan.md",
+  "task_type": "code",
+  "deliverables": [
+    {
+      "type": "backend",
+      "path": "backend/src/main/java/com/agenthub/app/",
+      "expected": "Spring Boot + COLA 架构，包含 Application、Domain、Repository 层"
+    },
+    {
+      "type": "frontend",
+      "path": "frontend/src/",
+      "expected": "Vue 3 + TypeScript + Vite 项目结构"
+    },
+    {
+      "type": "database",
+      "path": "db/schema.sql",
+      "expected": "12张表 DDL，含审计字段（created_by、updated_by）"
+    },
+    {
+      "type": "docker",
+      "path": "docker-compose.yml",
+      "expected": "6个服务：MySQL、Redis、Qdrant、RocketMQ、backend、frontend"
+    },
+    {
+      "type": "documentation",
+      "path": "docs/phase1-technical-design.md",
+      "expected": "Phase 1 详细技术设计文档，覆盖 Runtime/Registry/API/运维"
+    }
+  ],
+  "required_checks": [
+    {
+      "check": "backend_structure",
+      "tool": "file_read",
+      "description": "检查 backend 目录结构完整性"
+    },
+    {
+      "check": "frontend_structure",
+      "tool": "file_read",
+      "description": "检查 frontend 目录结构完整性"
+    },
+    {
+      "check": "database_schema",
+      "tool": "code_run",
+      "description": "验证 db/schema.sql 包含12张表"
+    },
+    {
+      "check": "docker_compose",
+      "tool": "file_read",
+      "description": "验证 docker-compose.yml 包含6个服务"
+    },
+    {
+      "check": "design_doc",
+      "tool": "file_read",
+      "description": "验证设计文档存在且内容完整"
+    }
+  ]
+}

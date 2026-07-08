@@ -1,0 +1,71 @@
+任务：AgentHub Phase 2 独立对抗性验证
+
+## 任务描述
+AgentHub Phase 2 实施 - 完成 12 个步骤包括后端客户端 SDK、前端页面、API 契约、安全方案和运维手册
+
+## 计划文件
+D:\projects\GenericAgent\temp\plan_agent-hub-phase2\plan.md
+
+## 交付物清单
+[
+  {
+    "type": "java_backend",
+    "path": "agent-hub-backend/src/main/java/com/agenthub/client/",
+    "expected": "12个 Java 接口和实现类 + 2个模型类"
+  },
+  {
+    "type": "vue_frontend",
+    "path": "agent-hub-frontend/src/views/",
+    "expected": "3个 Vue 页面 (AgentStudio, FunctionRegistry, Session)"
+  },
+  {
+    "type": "api_docs",
+    "path": "agent-hub-backend/docs/api-contract.yaml",
+    "expected": "OpenAPI 3.0 规范，包含所有端点定义"
+  },
+  {
+    "type": "security_docs",
+    "path": "agent-hub-backend/docs/security-design.md",
+    "expected": "JWT、RBAC、限流、审计日志方案"
+  },
+  {
+    "type": "operations_docs",
+    "path": "agent-hub-backend/docs/operations-manual.md",
+    "expected": "健康检查、日志、指标、告警规范"
+  }
+]
+
+## 必做检查
+[
+  {
+    "check": "文件存在性检查",
+    "tool": "file_read",
+    "details": "验证所有 18 个交付物文件存在且非空"
+  },
+  {
+    "check": "API 契约语法校验",
+    "tool": "yaml_parse",
+    "details": "验证 api-contract.yaml 是有效的 OpenAPI 3.0 规范"
+  },
+  {
+    "check": "Markdown 格式检查",
+    "tool": "file_read",
+    "details": "验证 security-design.md 和 operations-manual.md 格式正确"
+  },
+  {
+    "check": "对抗性探测",
+    "tool": "code_run",
+    "details": "边界值测试：空文件、超大文件、特殊字符"
+  }
+]
+
+## 验证标准
+1. 必须运行工具获取实际输出，禁止仅凭描述写 PASS
+2. 必须执行对抗性探测（边界值/空文件/特殊字符/超大文件）
+3. 必须独立验证所有交付物的实际内容
+4. 输出格式：表格形式，每项检查包含工具输出摘要和 PASS/FAIL
+
+## 输出要求
+- 将验证报告写入 plan_agent-hub-phase2/verification_report.md
+- 报告必须包含：检查项、工具、关键输出摘要、PASS/FAIL
+- 最终给出 VERDICT: PASS/FAIL/PARTIAL
