@@ -20,7 +20,7 @@
    - 结果：ReActEngine.java 已创建，包含 executeReActLoop、shouldCallFunction、extractFunctionName、extractArguments 方法
 - [✓] 2. **实现 LLM 客户端抽象**
    - 文件：`backend/src/main/java/com/agenthub/app/AgentManager/Infra/Adapter/LLMClient.java`
-   - 功能：统一 OpenAI/Anthropic/Azure 接口
+   - 功能：统一封装 Token Router completion/stream 调用，不直接持有 OpenAI/Anthropic/Azure Provider 路由职责
    - 验证：Mock 测试通过，异常处理覆盖
    - 结果：LLMClient.java 已创建，包含 sendMessage、sendMessages、sendMessageStream 方法
    

@@ -12,7 +12,7 @@
 
 `C:\Users\16813\Downloads\token-router` 定位为企业级 LLM 网关和治理层；AgentHub 定位为企业级 Agent 基础设施平台。两者通过 HTTP/OpenAI-compatible 模型调用集成，不共享领域模型。
 
-详细边界见 [PROJECT_BOUNDARY.md](PROJECT_BOUNDARY.md)。
+详细边界见 [PROJECT_BOUNDARY.md](PROJECT_BOUNDARY.md)。当前任务见 [TASKS.md](TASKS.md)。
 
 AgentHub 主责：
 
