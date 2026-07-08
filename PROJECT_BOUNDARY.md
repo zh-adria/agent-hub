@@ -64,4 +64,11 @@ AgentHub should not implement:
 
 ## Current Next Task
 
-Finalize the AgentHub-to-Token-Router invocation metadata contract, then align AgentHub runtime calls to use that contract.
+Implement the AgentHub-to-Token-Router invocation contract in AgentHub runtime calls.
+
+Immediate task breakdown:
+
+- Add or align `TokenRouterClient` for non-stream and stream completions.
+- Pass Agent correlation metadata through `extensions`.
+- Consume Token Router provider/model/usage/cost/route-decision fields.
+- Keep Agent workflow, Function execution, Session memory, and RAG ownership in AgentHub.
