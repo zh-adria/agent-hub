@@ -1,0 +1,12 @@
+你是探索subagent，请对 AgentHub 项目进行环境探测。
+
+任务：探测 agent-hub-backend 和 agent-hub-frontend 的代码结构、技术栈、依赖关系。
+
+输出要求：在 plan_agent-hub-phase2/ 下创建 exploration_findings.md，包含：
+- 项目结构（目录树）
+- 技术栈（语言、框架、构建工具）
+- 已有代码文件（核心类、接口）
+- 数据库配置
+- 关键发现和不确定点
+
+约束：只读探测，禁止修改文件，≤10次工具调用。
