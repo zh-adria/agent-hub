@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS function_definition (
     description TEXT,
     endpoint_url VARCHAR(512) COMMENT 'HTTP endpoint',
     protocol VARCHAR(16) COMMENT 'HTTP/MCP/gRPC',
+    method VARCHAR(16) COMMENT 'HTTP method',
+    implementation VARCHAR(32) COMMENT 'http/mcp/local',
     parameters JSON NOT NULL COMMENT 'JSON Schema',
     headers JSON COMMENT 'HTTP headers',
     auth_config JSON COMMENT 'auth config',
@@ -270,3 +272,183 @@ CREATE TABLE IF NOT EXISTS notification (
     FOREIGN KEY (tenant_id) REFERENCES tenant(id),
     FOREIGN KEY (user_id) REFERENCES user_account(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
+-- RAG knowledge base table
+CREATE TABLE IF NOT EXISTS knowledge_base (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    embedding_provider VARCHAR(32) NOT NULL,
+    embedding_model VARCHAR(128) NOT NULL,
+    chunk_size INT NOT NULL DEFAULT 800,
+    chunk_overlap INT NOT NULL DEFAULT 120,
+    metadata JSON,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_by VARCHAR(64) NOT NULL,
+    updated_by VARCHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_kb_tenant (tenant_id),
+    INDEX idx_kb_status (status),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG knowledge base';
+
+-- RAG document table
+CREATE TABLE IF NOT EXISTS rag_document (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    knowledge_base_id BIGINT NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    source_uri VARCHAR(1024),
+    mime_type VARCHAR(128),
+    content_hash VARCHAR(128),
+    metadata JSON,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_by VARCHAR(64) NOT NULL,
+    updated_by VARCHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_doc_kb (knowledge_base_id),
+    INDEX idx_doc_tenant (tenant_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG document';
+
+-- RAG document chunk table
+CREATE TABLE IF NOT EXISTS document_chunk (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    knowledge_base_id BIGINT NOT NULL,
+    document_id BIGINT NOT NULL,
+    chunk_index INT NOT NULL,
+    content TEXT NOT NULL,
+    token_count INT,
+    embedding_id VARCHAR(128),
+    metadata JSON,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_chunk_doc (document_id, chunk_index),
+    INDEX idx_chunk_kb (knowledge_base_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id),
+    FOREIGN KEY (document_id) REFERENCES rag_document(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG document chunk';
+
+-- RAG vector embedding table
+CREATE TABLE IF NOT EXISTS vector_embedding (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    knowledge_base_id BIGINT NOT NULL,
+    document_id BIGINT NOT NULL,
+    chunk_id BIGINT NOT NULL,
+    provider VARCHAR(32) NOT NULL,
+    model VARCHAR(128) NOT NULL,
+    dimension INT NOT NULL,
+    vector TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vec_kb (knowledge_base_id),
+    UNIQUE KEY uk_vec_chunk (chunk_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id),
+    FOREIGN KEY (document_id) REFERENCES rag_document(id),
+    FOREIGN KEY (chunk_id) REFERENCES document_chunk(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG vector embedding';
+
+CREATE TABLE IF NOT EXISTS workflow_definition (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    description TEXT,
+    definition JSON NOT NULL,
+    status TINYINT NOT NULL DEFAULT 1,
+    created_by VARCHAR(64) NOT NULL,
+    updated_by VARCHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_workflow_tenant (tenant_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Multi-Agent workflow definition';
+
+CREATE TABLE IF NOT EXISTS trace (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    session_id VARCHAR(64),
+    workflow_id BIGINT,
+    name VARCHAR(128) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    user_id VARCHAR(64),
+    metadata JSON,
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at DATETIME,
+    INDEX idx_trace_tenant_started (tenant_id, started_at),
+    INDEX idx_trace_session (session_id),
+    INDEX idx_trace_workflow (workflow_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Execution trace';
+
+CREATE TABLE IF NOT EXISTS step_record (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    trace_id VARCHAR(64) NOT NULL,
+    session_id VARCHAR(64),
+    workflow_id BIGINT,
+    step_key VARCHAR(128) NOT NULL,
+    agent_id VARCHAR(64),
+    status VARCHAR(32) NOT NULL,
+    input TEXT,
+    output TEXT,
+    error TEXT,
+    started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at DATETIME,
+    INDEX idx_step_trace (trace_id, started_at),
+    INDEX idx_step_tenant (tenant_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (trace_id) REFERENCES trace(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Trace step record';
+
+CREATE TABLE IF NOT EXISTS evaluation_run (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    agent_id VARCHAR(64) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    total_cases INT NOT NULL DEFAULT 0,
+    passed_cases INT NOT NULL DEFAULT 0,
+    score DOUBLE DEFAULT 0,
+    created_by VARCHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_eval_run_tenant (tenant_id, created_at),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Offline evaluation run';
+
+CREATE TABLE IF NOT EXISTS evaluation_case_result (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    run_id BIGINT NOT NULL,
+    case_key VARCHAR(128) NOT NULL,
+    input TEXT NOT NULL,
+    expected TEXT,
+    actual TEXT,
+    passed TINYINT NOT NULL DEFAULT 0,
+    error TEXT,
+    INDEX idx_eval_case_run (run_id),
+    INDEX idx_eval_case_tenant (tenant_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (run_id) REFERENCES evaluation_run(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Offline evaluation case result';
+
+CREATE TABLE IF NOT EXISTS bot_binding (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    channel VARCHAR(32) NOT NULL,
+    channel_bot_id VARCHAR(128) NOT NULL,
+    agent_id VARCHAR(64) NOT NULL,
+    secret VARCHAR(128),
+    status TINYINT NOT NULL DEFAULT 1,
+    created_by VARCHAR(64) NOT NULL,
+    updated_by VARCHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_bot_binding_channel (tenant_id, channel, channel_bot_id),
+    INDEX idx_bot_binding_tenant (tenant_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Enterprise bot channel binding';

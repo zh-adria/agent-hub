@@ -1,13 +1,16 @@
 package com.agenthub.domain.service;
 
-import com.agenthub.domain.model.agent.Agent;
-import com.agenthub.domain.model.session.Session;
-import com.agenthub.domain.model.message.Message;
+import com.agenthub.domain.model.Agent;
+import com.agenthub.domain.model.Session;
+import com.agenthub.domain.model.Message;
 import com.agenthub.domain.port.LLMClient;
 import com.agenthub.domain.port.FunctionRegistry;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +23,7 @@ public class ReActEngine {
 
     private final LLMClient llmClient;
     private final FunctionRegistry functionRegistry;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ReActEngine(LLMClient llmClient, FunctionRegistry functionRegistry) {
         this.llmClient = llmClient;
@@ -38,7 +42,7 @@ public class ReActEngine {
         messages.add(userMessage);
 
         // 构建上下文
-        List<Message> context = new ArrayList<>(session.getHistory());
+        List<Message> context = new ArrayList<>(session.getMessages() == null ? Collections.emptyList() : session.getMessages());
         context.add(userMessage);
 
         int maxIterations = agent.getMaxIterations() != null ? agent.getMaxIterations() : 10;
@@ -60,20 +64,18 @@ public class ReActEngine {
                 Object result = functionRegistry.invoke(functionName, arguments);
 
                 // 添加 Function 结果到上下文
-                Message functionResult = Message.builder()
-                        .role(Message.Role.SYSTEM)
-                        .content("Function " + functionName + " returned: " + result)
-                        .build();
+                Message functionResult = new Message();
+                functionResult.setRole(Message.MessageRole.SYSTEM);
+                functionResult.setContent("Function " + functionName + " returned: " + result);
                 messages.add(functionResult);
                 context.add(functionResult);
             } else {
                 // 3. Final Answer: 生成最终回复
                 String finalAnswer = llmClient.generateFinalAnswer(agent, context);
 
-                Message assistantMessage = Message.builder()
-                        .role(Message.Role.ASSISTANT)
-                        .content(finalAnswer)
-                        .build();
+                Message assistantMessage = new Message();
+                assistantMessage.setRole(Message.MessageRole.ASSISTANT);
+                assistantMessage.setContent(finalAnswer);
                 messages.add(assistantMessage);
                 break;
             }
@@ -106,7 +108,20 @@ public class ReActEngine {
      * 提取 Function 参数
      */
     private Map<String, Object> extractArguments(String reasoning) {
-        // TODO: 实现参数解析逻辑
-        return Map.of();
+        int marker = reasoning.indexOf("FUNCTION_CALL:");
+        if (marker < 0) {
+            return Collections.emptyMap();
+        }
+        String call = reasoning.substring(marker + "FUNCTION_CALL:".length()).trim();
+        int jsonStart = call.indexOf('{');
+        if (jsonStart < 0) {
+            return Collections.emptyMap();
+        }
+        String json = call.substring(jsonStart).trim();
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid function call arguments: " + json, ex);
+        }
     }
 }

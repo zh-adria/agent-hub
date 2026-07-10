@@ -1,41 +1,44 @@
 <template>
   <div class="function-registry">
-    <h2>Function Registry</h2>
-    <div class="toolbar">
-      <button @click="showCreateForm = true">Register Function</button>
+    <div class="page-header">
+      <h2>函数注册中心</h2>
+      <button @click="showCreateForm = true">注册函数</button>
     </div>
 
-    <!-- Function List -->
+    <!-- 函数列表 -->
     <div class="function-list">
+      <div v-if="functions.length === 0" class="empty">暂无函数</div>
       <div v-for="func in functions" :key="func.id" class="function-card">
         <h3>{{ func.name }}</h3>
-        <p>{{ func.description }}</p>
+        <p>{{ func.description || '暂无描述' }}</p>
+        <span>{{ func.method }} {{ func.endpoint }}</span>
         <div class="actions">
-          <button @click="testFunction(func)">Test</button>
-          <button @click="editFunction(func)">Edit</button>
+          <button @click="testFunction(func)">测试</button>
+          <button @click="editFunction(func)">编辑</button>
+          <button class="danger" @click="deleteFunction(func)">删除</button>
         </div>
       </div>
     </div>
 
-    <!-- Create/Edit Form -->
+    <!-- 创建/编辑表单 -->
     <div v-if="showCreateForm" class="modal">
       <div class="modal-content">
-        <h3>{{ editingFunction ? 'Edit Function' : 'Register Function' }}</h3>
+        <h3>{{ editingFunction ? '编辑函数' : '注册函数' }}</h3>
         <form @submit.prevent="saveFunction">
           <div class="form-group">
-            <label>Name</label>
+            <label>名称</label>
             <input v-model="functionForm.name" type="text" required />
           </div>
           <div class="form-group">
-            <label>Description</label>
+            <label>描述</label>
             <textarea v-model="functionForm.description"></textarea>
           </div>
           <div class="form-group">
-            <label>Endpoint</label>
+            <label>端点地址</label>
             <input v-model="functionForm.endpoint" type="text" required />
           </div>
           <div class="form-group">
-            <label>Method</label>
+            <label>请求方法</label>
             <select v-model="functionForm.method">
               <option value="GET">GET</option>
               <option value="POST">POST</option>
@@ -44,8 +47,8 @@
             </select>
           </div>
           <div class="actions">
-            <button type="submit">Save</button>
-            <button type="button" @click="showCreateForm = false">Cancel</button>
+            <button type="submit">保存</button>
+            <button type="button" @click="showCreateForm = false">取消</button>
           </div>
         </form>
       </div>
@@ -54,6 +57,8 @@
 </template>
 
 <script>
+import { apiFetch } from '../../../api';
+
 export default {
   data() {
     return {
@@ -73,12 +78,24 @@ export default {
   },
   methods: {
     async loadFunctions() {
-      // TODO: fetch from API
-      this.functions = [];
+      const response = await apiFetch('/api/functions');
+      this.functions = response.ok ? await response.json() : [];
     },
     async saveFunction() {
-      // TODO: POST /api/functions
+      const method = this.editingFunction ? 'PUT' : 'POST';
+      const url = this.editingFunction ? `/api/functions/${this.editingFunction.id}` : '/api/functions';
+      const response = await apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.functionForm)
+      });
+      if (!response.ok) {
+        alert('函数保存失败');
+        return;
+      }
       this.showCreateForm = false;
+      this.editingFunction = null;
+      this.functionForm = { name: '', description: '', endpoint: '', method: 'GET' };
       await this.loadFunctions();
     },
     editFunction(func) {
@@ -87,8 +104,21 @@ export default {
       this.showCreateForm = true;
     },
     async testFunction(func) {
-      // TODO: POST /api/functions/{id}/invoke
-      alert(`Testing ${func.name}`);
+      const response = await apiFetch(`/api/functions/${func.id}/invoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const result = response.ok ? await response.json() : { error: '函数测试失败' };
+      alert(JSON.stringify(result));
+    },
+    async deleteFunction(func) {
+      const response = await apiFetch(`/api/functions/${func.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        alert('函数删除失败');
+        return;
+      }
+      await this.loadFunctions();
     }
   }
 };
@@ -96,28 +126,77 @@ export default {
 
 <style scoped>
 .function-registry {
-  padding: 20px;
+  padding: 24px;
 }
-.toolbar {
-  margin-bottom: 20px;
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.page-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.page-header button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
 }
 .function-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 15px;
+  gap: 12px;
 }
 .function-card {
-  border: 1px solid #ddd;
-  padding: 15px;
-  border-radius: 5px;
+  border: 1px solid var(--border);
+  padding: 14px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+.function-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.function-card p {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+}
+.function-card span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  word-break: break-all;
 }
 .actions {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 .actions button {
-  margin-right: 10px;
-  padding: 5px 10px;
+  margin-right: 8px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--primary);
+  color: #fff;
   cursor: pointer;
+}
+.actions button.danger {
+  background: var(--danger);
+  color: #fff;
+  border: 0;
+}
+.empty {
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
 }
 .modal {
   position: fixed;
@@ -131,10 +210,11 @@ export default {
   align-items: center;
 }
 .modal-content {
-  background: white;
+  background: var(--surface);
   padding: 20px;
-  border-radius: 5px;
+  border-radius: 6px;
   width: 500px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.24);
 }
 .form-group {
   margin-bottom: 15px;
@@ -146,20 +226,31 @@ label {
 }
 input, textarea, select {
   width: 100%;
-  padding: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
   box-sizing: border-box;
 }
+textarea {
+  min-height: 90px;
+}
 button[type="submit"] {
-  padding: 10px 20px;
-  background: #42b983;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 5px;
+  background: var(--primary);
   color: white;
   border: none;
   cursor: pointer;
   margin-right: 10px;
 }
 button[type="button"] {
-  padding: 10px 20px;
-  background: #ccc;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 5px;
+  background: #e8edf3;
   border: none;
   cursor: pointer;
 }

@@ -21,7 +21,7 @@ public class FunctionRegistryServiceImpl implements FunctionRegistryService {
         validateFunctionPermission(function);
         
         // 检查函数是否已存在
-        if (functionRepository.existsById(function.getId())) {
+        if (function.getId() != null && functionRepository.existsById(function.getId())) {
             throw new IllegalArgumentException("Function already exists: " + function.getId());
         }
         

@@ -1,0 +1,56 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/agent_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
+    show-sql: false
+
+  # Run schema.sql and data.sql on startup
+  sql:
+    init:
+      mode: always
+      platform: mysql
+      schema-locations: classpath:db/init/schema.sql
+      data-locations: classpath:db/init/data.sql
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 3000ms
+
+# LLM Gateway
+token-router:
+  base-url: http://127.0.0.1:8082
+  completion-path: /api/chat/completions
+  stream-completion-path: /api/chat/completions/stream
+
+agenthub:
+  ai:
+    embedding:
+      external-enabled: false
+      url:
+      provider: llm-gateway
+      model: text-embedding
+    rerank:
+      external-enabled: false
+      url:
+      model: rerank-default
+    milvus:
+      enabled: false
+      url:
+      collection-prefix: agenthub
