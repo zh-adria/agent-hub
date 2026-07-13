@@ -2,7 +2,7 @@ package com.agenthub.client.ws;
 
 import com.agenthub.client.auth.AuthContext;
 import com.agenthub.client.auth.AuthenticatedPrincipal;
-import com.agenthub.client.auth.MockIdentityService;
+import com.agenthub.client.auth.IdentityService;
 import com.agenthub.domain.context.TenantContext;
 import com.agenthub.domain.model.Message;
 import com.agenthub.domain.service.SessionMessageService;
@@ -21,12 +21,12 @@ import java.util.Map;
 @Component
 public class SessionChatWebSocketHandler extends TextWebSocketHandler {
     private final SessionMessageService sessionMessageService;
-    private final MockIdentityService identityService;
+    private final IdentityService identityService;
     private final ObjectMapper objectMapper;
 
     public SessionChatWebSocketHandler(
             SessionMessageService sessionMessageService,
-            MockIdentityService identityService,
+            IdentityService identityService,
             ObjectMapper objectMapper) {
         this.sessionMessageService = sessionMessageService;
         this.identityService = identityService;

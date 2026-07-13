@@ -40,6 +40,12 @@ token-router:
   stream-completion-path: /api/chat/completions/stream
 
 agenthub:
+  identity:
+    provider: iam
+    iam:
+      base-url: http://127.0.0.1:8080/iam
+      client-id: demo-client
+      client-secret: demo-secret
   ai:
     embedding:
       external-enabled: false

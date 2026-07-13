@@ -9,9 +9,9 @@ import javax.servlet.http.HttpServletResponse;
 
 @Component
 public class RbacInterceptor implements HandlerInterceptor {
-    private final MockIdentityService identityService;
+    private final IdentityService identityService;
 
-    public RbacInterceptor(MockIdentityService identityService) {
+    public RbacInterceptor(IdentityService identityService) {
         this.identityService = identityService;
     }
 

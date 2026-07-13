@@ -1,34 +1,38 @@
 package com.agenthub.client.auth;
 
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.*;
 
 @Service
-public class MockIdentityService {
+@ConditionalOnProperty(prefix = "agenthub.identity", name = "provider", havingValue = "mock")
+public class MockIdentityService implements IdentityService {
 
+    @Override
     public AuthenticatedPrincipal introspect(String token) {
         String normalized = token == null ? "" : token.trim();
         if (normalized.isEmpty() || "expired".equalsIgnoreCase(normalized)) {
             return principal(false, "anonymous", "anonymous", "tenant-001",
-                    set("tenant-001"), set(), set());
+                    set("tenant-001"), set(), set(), normalized);
         }
         if ("reader-token".equalsIgnoreCase(normalized)) {
             return principal(true, "user-reader", "reader", "tenant-001",
-                    set("tenant-001"), set("agent_reader"), readPermissions());
+                    set("tenant-001"), set("agent_reader"), readPermissions(), normalized);
         }
         if ("knowledge-token".equalsIgnoreCase(normalized)) {
             return principal(true, "user-knowledge", "knowledge-editor", "tenant-001",
-                    set("tenant-001"), set("knowledge_editor"), permissionsFor("knowledge_editor"));
+                    set("tenant-001"), set("knowledge_editor"), permissionsFor("knowledge_editor"), normalized);
         }
         if ("tenant-002-token".equalsIgnoreCase(normalized)) {
             return principal(true, "user-002", "tenant-two-admin", "tenant-002",
-                    set("tenant-002"), set("agent_admin", "knowledge_editor"), adminPermissions());
+                    set("tenant-002"), set("agent_admin", "knowledge_editor"), adminPermissions(), normalized);
         }
         return principal(true, "user-001", "admin", "tenant-001",
-                set("tenant-001", "tenant-002"), set("agent_admin", "knowledge_editor"), adminPermissions());
+                set("tenant-001", "tenant-002"), set("agent_admin", "knowledge_editor"), adminPermissions(), normalized);
     }
 
+    @Override
     public boolean authorize(AuthenticatedPrincipal principal, String tenantId, String action) {
         return principal != null
                 && principal.isActive()
@@ -36,6 +40,7 @@ public class MockIdentityService {
                 && principal.hasPermission(action);
     }
 
+    @Override
     public Map<String, Object> introspectionResponse(String token) {
         AuthenticatedPrincipal principal = introspect(token);
         Map<String, Object> response = new LinkedHashMap<>();
@@ -50,6 +55,7 @@ public class MockIdentityService {
         return response;
     }
 
+    @Override
     public Map<String, Object> userInfo(AuthenticatedPrincipal principal, boolean authorizationPresent) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("userId", principal.getUserId());
@@ -98,8 +104,9 @@ public class MockIdentityService {
             String tenantId,
             Set<String> tenantIds,
             Set<String> roles,
-            Set<String> permissions) {
-        return new AuthenticatedPrincipal(active, userId, username, tenantId, tenantIds, roles, permissions);
+            Set<String> permissions,
+            String accessToken) {
+        return new AuthenticatedPrincipal(active, userId, username, tenantId, tenantIds, roles, permissions, accessToken);
     }
 
     private Set<String> adminPermissions() {

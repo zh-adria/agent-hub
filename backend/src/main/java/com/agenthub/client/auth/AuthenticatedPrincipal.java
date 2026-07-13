@@ -12,6 +12,7 @@ public class AuthenticatedPrincipal {
     private final Set<String> tenantIds;
     private final Set<String> roles;
     private final Set<String> permissions;
+    private final String accessToken;
 
     public AuthenticatedPrincipal(
             boolean active,
@@ -21,6 +22,18 @@ public class AuthenticatedPrincipal {
             Set<String> tenantIds,
             Set<String> roles,
             Set<String> permissions) {
+        this(active, userId, username, tenantId, tenantIds, roles, permissions, null);
+    }
+
+    public AuthenticatedPrincipal(
+            boolean active,
+            String userId,
+            String username,
+            String tenantId,
+            Set<String> tenantIds,
+            Set<String> roles,
+            Set<String> permissions,
+            String accessToken) {
         this.active = active;
         this.userId = userId;
         this.username = username;
@@ -28,6 +41,7 @@ public class AuthenticatedPrincipal {
         this.tenantIds = immutableSet(tenantIds);
         this.roles = immutableSet(roles);
         this.permissions = immutableSet(permissions);
+        this.accessToken = accessToken;
     }
 
     public boolean isActive() {
@@ -56,6 +70,10 @@ public class AuthenticatedPrincipal {
 
     public Set<String> getPermissions() {
         return permissions;
+    }
+
+    public String getAccessToken() {
+        return accessToken;
     }
 
     public boolean hasTenant(String tenantId) {

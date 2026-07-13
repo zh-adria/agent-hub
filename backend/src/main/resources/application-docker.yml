@@ -29,3 +29,11 @@ token-router:
   base-url: http://host.docker.internal:8082
   completion-path: /api/chat/completions
   stream-completion-path: /api/chat/completions/stream
+
+agenthub:
+  identity:
+    provider: iam
+    iam:
+      base-url: http://host.docker.internal:8080/iam
+      client-id: demo-client
+      client-secret: demo-secret

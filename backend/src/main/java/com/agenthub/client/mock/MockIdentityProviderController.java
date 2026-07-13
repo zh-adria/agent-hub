@@ -2,12 +2,14 @@ package com.agenthub.client.mock;
 
 import com.agenthub.client.auth.AuthenticatedPrincipal;
 import com.agenthub.client.auth.MockIdentityService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
 @RestController
 @RequestMapping("/mock")
+@ConditionalOnBean(MockIdentityService.class)
 public class MockIdentityProviderController {
     private final MockIdentityService identityService;
 

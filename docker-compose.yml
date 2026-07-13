@@ -47,6 +47,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: root
       SPRING_REDIS_HOST: redis
       TOKEN_ROUTER_BASE_URL: http://host.docker.internal:8082
+      AGENTHUB_IDENTITY_IAM_BASE_URL: http://host.docker.internal:8080/iam
     depends_on:
       mysql:
         condition: service_healthy

@@ -1,13 +1,15 @@
-const DEFAULT_TOKEN = 'mock-token';
-const DEFAULT_TENANT_ID = 'tenant-001';
+const DEFAULT_TOKEN = import.meta.env.VITE_DEFAULT_ACCESS_TOKEN || '';
+const DEFAULT_TENANT_ID = import.meta.env.VITE_DEFAULT_TENANT_ID || '';
 
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers || {});
+  const token = localStorage.getItem('accessToken') || DEFAULT_TOKEN;
+  const tenantId = localStorage.getItem('tenantId') || DEFAULT_TENANT_ID;
   if (!headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${localStorage.getItem('accessToken') || DEFAULT_TOKEN}`);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
   }
   if (!headers.has('X-Tenant-Id')) {
-    headers.set('X-Tenant-Id', localStorage.getItem('tenantId') || DEFAULT_TENANT_ID);
+    if (tenantId) headers.set('X-Tenant-Id', tenantId);
   }
   return fetch(input, { ...init, headers });
 }

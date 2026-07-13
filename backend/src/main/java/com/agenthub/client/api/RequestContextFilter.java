@@ -2,7 +2,7 @@ package com.agenthub.client.api;
 
 import com.agenthub.client.auth.AuthContext;
 import com.agenthub.client.auth.AuthenticatedPrincipal;
-import com.agenthub.client.auth.MockIdentityService;
+import com.agenthub.client.auth.IdentityService;
 import com.agenthub.domain.context.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
@@ -19,10 +19,10 @@ import java.util.Map;
 
 @Component("agentHubRequestContextFilter")
 public class RequestContextFilter extends OncePerRequestFilter {
-    private final MockIdentityService identityService;
+    private final IdentityService identityService;
     private final ObjectMapper objectMapper;
 
-    public RequestContextFilter(MockIdentityService identityService, ObjectMapper objectMapper) {
+    public RequestContextFilter(IdentityService identityService, ObjectMapper objectMapper) {
         this.identityService = identityService;
         this.objectMapper = objectMapper;
     }
