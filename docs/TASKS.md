@@ -2,6 +2,7 @@
 
 ## 剩余产品工作
 
+- Dify 替代交付计划：把当前六个产品域包装成私有化迁移交付包，交付范围包括迁移审计、核心迁移、治理补齐、私有化适配和验收材料
 - 补充端到端 API/前端测试，覆盖 Agent/Function/Session 主流程
 - Agent Runtime：结构化 tool call、WebSocket 真流式增量、运行超时和错误归类
 - Tool / MCP：补全 MCP schema 映射、工具权限、参数校验、执行超时

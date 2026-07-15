@@ -5,6 +5,9 @@ import com.agenthub.domain.exception.ResourceNotFoundException;
 import com.agenthub.domain.model.FunctionDefinition;
 import com.agenthub.domain.port.FunctionRegistry;
 import com.agenthub.domain.service.FunctionRegistryService;
+import com.agenthub.domain.service.TraceService;
+import com.agenthub.infra.persistence.entity.StepRecordEntity;
+import com.agenthub.infra.persistence.entity.TraceEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
 import java.util.*;
@@ -17,11 +20,17 @@ public class FunctionApiImpl implements FunctionApi {
     private final FunctionRegistryService functionRegistryService;
     private final FunctionRegistry functionRegistry;
     private final ObjectMapper objectMapper;
+    private final TraceService traceService;
 
-    public FunctionApiImpl(FunctionRegistryService functionRegistryService, FunctionRegistry functionRegistry, ObjectMapper objectMapper) {
+    public FunctionApiImpl(
+            FunctionRegistryService functionRegistryService,
+            FunctionRegistry functionRegistry,
+            ObjectMapper objectMapper,
+            TraceService traceService) {
         this.functionRegistryService = functionRegistryService;
         this.functionRegistry = functionRegistry;
         this.objectMapper = objectMapper;
+        this.traceService = traceService;
     }
 
     @Override
@@ -68,12 +77,22 @@ public class FunctionApiImpl implements FunctionApi {
         FunctionDefinition function = functionRegistryService.getFunction(String.valueOf(functionId))
                 .orElseThrow(() -> new IllegalArgumentException("Function not found: " + functionId));
         Map<String, Object> input = extractInput(args);
-        Object response = functionRegistry.invoke(function.getId(), input);
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("functionId", function.getId());
-        result.put("status", 200);
-        result.put("result", response);
-        return result;
+        TraceEntity trace = traceService.start("function.invoke", null, null, functionTraceMetadata(function));
+        StepRecordEntity step = traceService.startStep(trace.getId(), null, null, "function:" + function.getId(), null, safeJson(input));
+        try {
+            Object response = functionRegistry.invoke(function.getId(), input);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("functionId", function.getId());
+            result.put("status", 200);
+            result.put("result", response);
+            traceService.completeStep(step, safeJson(result));
+            traceService.finish(trace.getId(), "SUCCEEDED");
+            return result;
+        } catch (RuntimeException ex) {
+            traceService.failStep(step, ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            traceService.finish(trace.getId(), "FAILED");
+            throw ex;
+        }
     }
 
     @Override
@@ -137,6 +156,23 @@ public class FunctionApiImpl implements FunctionApi {
             return objectMapper.writeValueAsString(value);
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid function parameters schema", ex);
+        }
+    }
+
+    private String functionTraceMetadata(FunctionDefinition function) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("functionId", function.getId());
+        metadata.put("functionName", function.getName());
+        metadata.put("endpoint", function.getEndpoint());
+        metadata.put("method", function.getMethod());
+        return safeJson(metadata);
+    }
+
+    private String safeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            return String.valueOf(value);
         }
     }
 }
