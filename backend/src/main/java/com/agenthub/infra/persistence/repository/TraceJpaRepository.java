@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface TraceJpaRepository extends JpaRepository<TraceEntity, String> {
     Optional<TraceEntity> findByIdAndTenantId(String id, Long tenantId);
     List<TraceEntity> findByTenantIdOrderByStartedAtDesc(Long tenantId);
+    long countByTenantIdAndStatus(Long tenantId, String status);
 }

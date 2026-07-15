@@ -1,19 +1,45 @@
 <template>
-  <div class="app-shell">
+  <div v-if="loading" class="boot-screen">正在加载...</div>
+
+  <div v-else-if="!currentUser" class="login-screen">
+    <section class="login-panel">
+      <div>
+        <h1>AgentHub</h1>
+        <p>使用 IAM 账号登录后进入 Agent 管理与运营控制台。</p>
+      </div>
+      <form @submit.prevent="submitLogin">
+        <label>租户</label>
+        <input v-model="loginForm.tenantCode" autocomplete="organization" required />
+        <label>用户名</label>
+        <input v-model="loginForm.username" autocomplete="username" required />
+        <label>密码</label>
+        <input v-model="loginForm.password" type="password" autocomplete="current-password" required />
+        <button type="submit" :disabled="loginBusy">{{ loginBusy ? '登录中...' : '登录' }}</button>
+        <p v-if="loginError" class="error">{{ loginError }}</p>
+      </form>
+    </section>
+  </div>
+
+  <div v-else class="app-shell">
     <aside class="sidebar">
       <div class="brand">AgentHub</div>
       <button
-        v-for="item in navItems"
+        v-for="item in visibleNavItems"
         :key="item.key"
         :class="{ active: activeView === item.key }"
         @click="activeView = item.key"
       >
         {{ item.label }}
       </button>
+      <div class="account">
+        <strong>{{ currentUser.displayName || currentUser.username }}</strong>
+        <span>{{ currentUser.tenantId }}</span>
+        <button type="button" @click="submitLogout">退出登录</button>
+      </div>
     </aside>
     <main class="workspace">
       <div class="workspace-inner">
-        <component :is="currentComponent" />
+        <component :is="currentComponent" :user="currentUser" />
       </div>
     </main>
   </div>
@@ -25,6 +51,7 @@ import FunctionRegistry from './views/functions/FunctionRegistry/Index.vue';
 import KnowledgeBase from './views/knowledge/Index.vue';
 import SessionManager from './views/sessions/Index.vue';
 import AdminConsole from './views/admin/Index.vue';
+import { clearAuthSession, getAccessToken, hasAnyPermission, loadCurrentUser, login, logout } from './api';
 
 export default {
   components: {
@@ -36,17 +63,33 @@ export default {
   },
   data() {
     return {
+      loading: true,
+      loginBusy: false,
+      loginError: '',
+      currentUser: null,
       activeView: 'agents',
+      loginForm: {
+        tenantCode: localStorage.getItem('tenantId') || 'default',
+        username: 'admin',
+        password: ''
+      },
       navItems: [
-        { key: 'agents', label: 'Agent 工作台' },
-        { key: 'functions', label: '函数注册中心' },
-        { key: 'knowledge', label: '知识库' },
-        { key: 'sessions', label: '会话管理' },
-        { key: 'admin', label: 'Admin Console' }
+        { key: 'agents', label: 'Agent 工作台', permissions: ['agent:read'] },
+        { key: 'functions', label: '函数注册中心', permissions: ['function:read'] },
+        { key: 'knowledge', label: '知识库', permissions: ['knowledge:read', 'knowledge:search'] },
+        { key: 'sessions', label: '会话管理', permissions: ['session:read'] },
+        {
+          key: 'admin',
+          label: '管理控制台',
+          permissions: ['audit:read', 'trace:read', 'workflow:read', 'evaluation:read', 'bot:read']
+        }
       ]
     };
   },
   computed: {
+    visibleNavItems() {
+      return this.navItems.filter(item => hasAnyPermission(this.currentUser, item.permissions));
+    },
     currentComponent() {
       const map = {
         agents: 'AgentStudio',
@@ -55,7 +98,48 @@ export default {
         sessions: 'SessionManager',
         admin: 'AdminConsole'
       };
-      return map[this.activeView];
+      return map[this.activeView] || map[this.visibleNavItems[0]?.key] || 'AdminConsole';
+    }
+  },
+  watch: {
+    visibleNavItems: {
+      handler(items) {
+        if (items.length > 0 && !items.some(item => item.key === this.activeView)) {
+          this.activeView = items[0].key;
+        }
+      },
+      immediate: true
+    }
+  },
+  async created() {
+    if (!getAccessToken()) {
+      this.loading = false;
+      return;
+    }
+    try {
+      this.currentUser = await loadCurrentUser();
+    } catch (error) {
+      clearAuthSession();
+    } finally {
+      this.loading = false;
+    }
+  },
+  methods: {
+    async submitLogin() {
+      this.loginBusy = true;
+      this.loginError = '';
+      try {
+        await login(this.loginForm);
+        this.currentUser = await loadCurrentUser();
+      } catch (error) {
+        this.loginError = error.message || '登录失败';
+      } finally {
+        this.loginBusy = false;
+      }
+    },
+    async submitLogout() {
+      await logout();
+      this.currentUser = null;
     }
   }
 };
@@ -90,6 +174,83 @@ body {
   font-size: 14px;
 }
 
+.boot-screen,
+.login-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.login-panel {
+  width: min(440px, 100%);
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 18px 44px rgba(23, 32, 42, 0.12);
+}
+
+.login-panel h1,
+.login-panel p {
+  margin: 0;
+}
+
+.login-panel p {
+  margin-top: 8px;
+  color: var(--text-muted);
+}
+
+.login-panel form {
+  display: grid;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.login-panel label {
+  font-weight: 700;
+}
+
+.login-panel input,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.login-panel input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.login-panel button,
+.sidebar button {
+  font: inherit;
+}
+
+.login-panel button {
+  min-height: 38px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+
+.login-panel button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--danger);
+}
+
 .app-shell {
   display: flex;
   min-height: 100vh;
@@ -110,7 +271,7 @@ body {
   line-height: 32px;
 }
 
-.sidebar button {
+.sidebar > button {
   display: flex;
   align-items: center;
   width: 100%;
@@ -126,10 +287,38 @@ body {
   font-size: 14px;
 }
 
-.sidebar button.active,
-.sidebar button:hover {
+.sidebar > button.active,
+.sidebar > button:hover {
   background: var(--sidebar-active);
   color: #fff;
+}
+
+.account {
+  margin-top: 28px;
+  padding: 12px 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.account strong,
+.account span {
+  display: block;
+}
+
+.account span {
+  margin-top: 4px;
+  color: #b9c6d6;
+  font-size: 12px;
+}
+
+.account button {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #e8eef4;
+  color: var(--text);
+  cursor: pointer;
 }
 
 .workspace {

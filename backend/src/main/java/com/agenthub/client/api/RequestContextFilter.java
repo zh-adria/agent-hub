@@ -61,8 +61,9 @@ public class RequestContextFilter extends OncePerRequestFilter {
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
                 || path.startsWith("/ws/")
                 || path.startsWith("/mock")
+                || path.equals("/api/auth/login")
                 || path.equals("/api/health")
-                || path.equals("/api/health/");
+                || path.startsWith("/api/health/");
     }
 
     private String bearerToken(HttpServletRequest request) {

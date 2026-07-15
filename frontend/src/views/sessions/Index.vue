@@ -1,9 +1,8 @@
 <template>
   <div class="session-manager">
-    <!-- 会话列表 -->
     <div class="session-list">
       <h2>会话管理</h2>
-      <form class="create-session" @submit.prevent="createSession">
+      <form v-if="canCreate" class="create-session" @submit.prevent="createSession">
         <label>Agent</label>
         <select v-model="newSession.agentId" required>
           <option value="" disabled>选择 Agent</option>
@@ -23,7 +22,6 @@
       </div>
     </div>
 
-    <!-- 聊天区域 -->
     <div v-if="currentSession" class="chat-area">
       <div class="chat-header">
         <h3>{{ currentSession.agentName }}</h3>
@@ -42,9 +40,9 @@
           v-model="newMessage"
           @keyup.enter="sendMessage"
           placeholder="输入消息..."
-          :disabled="!isConnected"
+          :disabled="!canMessage"
         />
-        <button @click="sendMessage" :disabled="!isConnected || !newMessage.trim()">
+        <button @click="sendMessage" :disabled="!canMessage || !newMessage.trim()">
           发送
         </button>
       </div>
@@ -57,31 +55,35 @@
 </template>
 
 <script>
-import { apiFetch } from '../../api';
+import { apiFetch, hasPermission } from '../../api';
 
 export default {
+  props: {
+    user: { type: Object, default: null }
+  },
   data() {
     return {
       agents: [],
       sessions: [],
       currentSession: null,
       newMessage: '',
-      isConnected: false,
-      ws: null,
       newSession: {
         agentId: '',
         userId: '1'
       }
     };
   },
+  computed: {
+    canCreate() {
+      return hasPermission(this.user, 'session:create');
+    },
+    canMessage() {
+      return hasPermission(this.user, 'session:message') && this.currentSession;
+    }
+  },
   async created() {
     await this.loadAgents();
     await this.loadSessions();
-  },
-  beforeUnmount() {
-    if (this.ws) {
-      this.ws.close();
-    }
   },
   methods: {
     async loadAgents() {
@@ -116,25 +118,17 @@ export default {
     },
     selectSession(session) {
       this.currentSession = session;
-      this.connectSession(session.id);
+      this.loadMessages(session.id);
     },
     closeSession() {
       this.currentSession = null;
-      if (this.ws) {
-        this.ws.close();
-        this.ws = null;
-      }
     },
-    connectSession(sessionId) {
-      this.isConnected = true;
-      apiFetch(`/api/sessions/${sessionId}/messages`)
-        .then(response => response.ok ? response.json() : [])
-        .then(messages => {
-          this.currentSession.messages = messages;
-        });
+    async loadMessages(sessionId) {
+      const response = await apiFetch(`/api/sessions/${sessionId}/messages`);
+      this.currentSession.messages = response.ok ? await response.json() : [];
     },
     async sendMessage() {
-      if (!this.newMessage.trim() || !this.isConnected) return;
+      if (!this.newMessage.trim() || !this.canMessage) return;
 
       const message = {
         id: Date.now(),
@@ -333,6 +327,7 @@ export default {
 }
 .message-input button:disabled {
   background: #ccc;
+  cursor: not-allowed;
 }
 .no-session {
   flex: 1;

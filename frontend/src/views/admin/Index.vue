@@ -2,38 +2,38 @@
   <div class="admin-console">
     <div class="page-header">
       <div>
-        <h2>Admin Console</h2>
-        <p>运行状态、治理数据、工作流、评估与企业通道。</p>
+        <h2>管理控制台</h2>
+        <p>查看运行状态、链路追踪、工作流、评估、企业通道和用量审计。</p>
       </div>
       <button type="button" @click="refreshAll">刷新</button>
     </div>
 
     <div class="status-grid">
       <section class="metric">
-        <span>服务</span>
+        <span>服务状态</span>
         <strong :class="statusClass(health.status)">{{ health.status || '-' }}</strong>
       </section>
       <section class="metric">
-        <span>就绪</span>
+        <span>就绪状态</span>
         <strong :class="statusClass(ready.status)">{{ ready.status || '-' }}</strong>
       </section>
       <section class="metric">
-        <span>Trace</span>
+        <span>链路数</span>
         <strong>{{ summary.traceCount ?? '-' }}</strong>
       </section>
       <section class="metric">
-        <span>Step</span>
+        <span>步骤记录</span>
         <strong>{{ summary.stepRecordCount ?? '-' }}</strong>
       </section>
       <section class="metric">
-        <span>LLM Audit</span>
+        <span>用量审计</span>
         <strong>{{ summary.llmAuditRecordCount ?? '-' }}</strong>
       </section>
     </div>
 
     <div class="tabs">
       <button
-        v-for="tab in tabs"
+        v-for="tab in visibleTabs"
         :key="tab.key"
         type="button"
         :class="{ active: activeTab === tab.key }"
@@ -61,17 +61,27 @@
           </table>
         </div>
         <div>
-          <h3>访问上下文</h3>
-          <form class="settings-form" @submit.prevent="saveContext">
-            <label>Access Token</label>
-            <input v-model="settings.accessToken" type="password" placeholder="mock-token 或真实 token" />
-            <label>Tenant ID</label>
-            <input v-model="settings.tenantId" type="text" placeholder="tenant-001" />
-            <div class="button-row">
-              <button type="submit">保存</button>
-              <button type="button" class="secondary" @click="clearContext">清空</button>
-            </div>
-          </form>
+          <h3>当前身份</h3>
+          <table>
+            <tbody>
+              <tr>
+                <th>用户</th>
+                <td>{{ user?.displayName || user?.username || '-' }}</td>
+              </tr>
+              <tr>
+                <th>租户</th>
+                <td>{{ user?.tenantId || '-' }}</td>
+              </tr>
+              <tr>
+                <th>角色</th>
+                <td>{{ joinList(user?.roles) }}</td>
+              </tr>
+              <tr>
+                <th>权限</th>
+                <td class="clip">{{ joinList(user?.permissions) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -79,7 +89,7 @@
     <section v-if="activeTab === 'traces'" class="section">
       <div class="split">
         <div>
-          <h3>Trace</h3>
+          <h3>链路追踪</h3>
           <button
             v-for="trace in traces"
             :key="trace.id"
@@ -91,17 +101,17 @@
             <strong>{{ trace.name }}</strong>
             <span>{{ trace.status }} / {{ trace.startedAt }}</span>
           </button>
-          <div v-if="traces.length === 0" class="empty">暂无 Trace</div>
+          <div v-if="traces.length === 0" class="empty">暂无链路</div>
         </div>
         <div>
-          <h3>Step Record</h3>
+          <h3>步骤记录</h3>
           <table v-if="traceSteps.length > 0">
             <thead>
               <tr>
-                <th>Step</th>
-                <th>Status</th>
+                <th>步骤</th>
+                <th>状态</th>
                 <th>Agent</th>
-                <th>Output</th>
+                <th>输出</th>
               </tr>
             </thead>
             <tbody>
@@ -113,7 +123,7 @@
               </tr>
             </tbody>
           </table>
-          <div v-else class="empty">选择 Trace 查看步骤</div>
+          <div v-else class="empty">选择链路后查看步骤</div>
         </div>
       </div>
     </section>
@@ -121,7 +131,7 @@
     <section v-if="activeTab === 'workflows'" class="section">
       <div class="split">
         <div>
-          <h3>Workflow</h3>
+          <h3>工作流</h3>
           <button
             v-for="workflow in workflows"
             :key="workflow.id"
@@ -133,14 +143,14 @@
             <strong>{{ workflow.name }}</strong>
             <span>{{ workflow.description || '无描述' }}</span>
           </button>
-          <div v-if="workflows.length === 0" class="empty">暂无 Workflow</div>
+          <div v-if="workflows.length === 0" class="empty">暂无工作流</div>
         </div>
         <div>
           <h3>执行</h3>
           <form class="settings-form" @submit.prevent="executeWorkflow">
-            <label>Input</label>
-            <textarea v-model="workflowInput" placeholder="workflow input"></textarea>
-            <button type="submit" :disabled="!selectedWorkflow">执行 Workflow</button>
+            <label>输入</label>
+            <textarea v-model="workflowInput" placeholder="工作流输入"></textarea>
+            <button type="submit" :disabled="!selectedWorkflow || !can('workflow:execute')">执行工作流</button>
           </form>
           <pre v-if="workflowResult">{{ workflowResult }}</pre>
         </div>
@@ -148,16 +158,16 @@
     </section>
 
     <section v-if="activeTab === 'evaluations'" class="section">
-      <h3>Evaluation Runs</h3>
+      <h3>评估批次</h3>
       <table v-if="evaluations.length > 0">
         <thead>
           <tr>
             <th>ID</th>
-            <th>Name</th>
+            <th>名称</th>
             <th>Agent</th>
-            <th>Status</th>
-            <th>Score</th>
-            <th>Cases</th>
+            <th>状态</th>
+            <th>得分</th>
+            <th>用例</th>
           </tr>
         </thead>
         <tbody>
@@ -177,7 +187,7 @@
     <section v-if="activeTab === 'bots'" class="section">
       <div class="split">
         <div>
-          <h3>Bot Bindings</h3>
+          <h3>企业通道绑定</h3>
           <button
             v-for="binding in botBindings"
             :key="binding.id"
@@ -189,14 +199,14 @@
             <strong>{{ binding.channel }} / {{ binding.channelBotId }}</strong>
             <span>Agent {{ binding.agentId }} / {{ binding.status }}</span>
           </button>
-          <div v-if="botBindings.length === 0" class="empty">暂无 Bot Binding</div>
+          <div v-if="botBindings.length === 0" class="empty">暂无企业通道绑定</div>
         </div>
         <div>
           <h3>密钥轮换</h3>
           <form class="settings-form" @submit.prevent="rotateSecret">
-            <label>New Secret</label>
-            <input v-model="newSecret" type="password" placeholder="new webhook secret" />
-            <button type="submit" :disabled="!selectedBinding || !newSecret">轮换密钥</button>
+            <label>新密钥</label>
+            <input v-model="newSecret" type="password" placeholder="新的 Webhook 密钥" />
+            <button type="submit" :disabled="!selectedBinding || !newSecret || !can('bot:update')">轮换密钥</button>
           </form>
           <div v-if="botMessage" class="notice">{{ botMessage }}</div>
         </div>
@@ -204,16 +214,16 @@
     </section>
 
     <section v-if="activeTab === 'audit'" class="section">
-      <h3>LLM Usage Audit</h3>
+      <h3>LLM 用量审计</h3>
       <table v-if="llmAudit.length > 0">
         <thead>
           <tr>
-            <th>Time</th>
+            <th>时间</th>
             <th>Agent</th>
-            <th>Step</th>
-            <th>Model</th>
-            <th>Tokens</th>
-            <th>Cost</th>
+            <th>步骤</th>
+            <th>模型</th>
+            <th>Token</th>
+            <th>成本</th>
           </tr>
         </thead>
         <tbody>
@@ -233,19 +243,22 @@
 </template>
 
 <script>
-import { apiFetch } from '../../api';
+import { apiFetch, hasPermission } from '../../api';
 
 export default {
+  props: {
+    user: { type: Object, default: null }
+  },
   data() {
     return {
       activeTab: 'overview',
       tabs: [
-        { key: 'overview', label: '概览' },
-        { key: 'traces', label: 'Trace' },
-        { key: 'workflows', label: 'Workflow' },
-        { key: 'evaluations', label: 'Evaluation' },
-        { key: 'bots', label: 'Bot' },
-        { key: 'audit', label: 'LLM Audit' }
+        { key: 'overview', label: '概览', permissions: [] },
+        { key: 'traces', label: '链路追踪', permissions: ['trace:read'] },
+        { key: 'workflows', label: '工作流', permissions: ['workflow:read'] },
+        { key: 'evaluations', label: '评估', permissions: ['evaluation:read'] },
+        { key: 'bots', label: '企业通道', permissions: ['bot:read'] },
+        { key: 'audit', label: '用量审计', permissions: ['audit:read'] }
       ],
       health: {},
       ready: {},
@@ -262,26 +275,30 @@ export default {
       selectedBinding: null,
       newSecret: '',
       botMessage: '',
-      llmAudit: [],
-      settings: {
-        accessToken: localStorage.getItem('accessToken') || '',
-        tenantId: localStorage.getItem('tenantId') || ''
-      }
+      llmAudit: []
     };
+  },
+  computed: {
+    visibleTabs() {
+      return this.tabs.filter(tab => tab.permissions.length === 0 || tab.permissions.some(permission => this.can(permission)));
+    }
   },
   async created() {
     await this.refreshAll();
   },
   methods: {
+    can(permission) {
+      return hasPermission(this.user, permission);
+    },
     async refreshAll() {
       await Promise.all([
         this.loadHealth(),
-        this.loadSummary(),
-        this.loadTraces(),
-        this.loadWorkflows(),
-        this.loadEvaluations(),
-        this.loadBotBindings(),
-        this.loadAudit()
+        this.can('audit:read') ? this.loadSummary() : Promise.resolve(),
+        this.can('trace:read') ? this.loadTraces() : Promise.resolve(),
+        this.can('workflow:read') ? this.loadWorkflows() : Promise.resolve(),
+        this.can('evaluation:read') ? this.loadEvaluations() : Promise.resolve(),
+        this.can('bot:read') ? this.loadBotBindings() : Promise.resolve(),
+        this.can('audit:read') ? this.loadAudit() : Promise.resolve()
       ]);
     },
     async loadHealth() {
@@ -310,7 +327,7 @@ export default {
       this.workflows = response.ok ? await response.json() : [];
     },
     async executeWorkflow() {
-      if (!this.selectedWorkflow) return;
+      if (!this.selectedWorkflow || !this.can('workflow:execute')) return;
       const response = await apiFetch(`/api/workflows/${this.selectedWorkflow.id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,7 +335,7 @@ export default {
       });
       this.workflowResult = response.ok
         ? JSON.stringify(await response.json(), null, 2)
-        : 'Workflow 执行失败';
+        : '工作流执行失败';
       await Promise.all([this.loadTraces(), this.loadSummary()]);
     },
     async loadEvaluations() {
@@ -330,7 +347,7 @@ export default {
       this.botBindings = response.ok ? await response.json() : [];
     },
     async rotateSecret() {
-      if (!this.selectedBinding || !this.newSecret) return;
+      if (!this.selectedBinding || !this.newSecret || !this.can('bot:update')) return;
       const response = await apiFetch(`/api/bots/bindings/${this.selectedBinding.id}/rotate-secret`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -344,26 +361,14 @@ export default {
       const response = await apiFetch('/api/audit/llm-usage');
       this.llmAudit = response.ok ? await response.json() : [];
     },
-    saveContext() {
-      if (this.settings.accessToken) {
-        localStorage.setItem('accessToken', this.settings.accessToken);
-      }
-      if (this.settings.tenantId) {
-        localStorage.setItem('tenantId', this.settings.tenantId);
-      }
-      this.refreshAll();
-    },
-    clearContext() {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('tenantId');
-      this.settings = { accessToken: '', tenantId: '' };
-      this.refreshAll();
-    },
     statusClass(status) {
       return status === 'UP' ? 'ok' : 'bad';
     },
     formatScore(score) {
       return Number(score || 0).toFixed(3);
+    },
+    joinList(values) {
+      return values && values.length > 0 ? values.join(', ') : '-';
     }
   }
 };
@@ -501,10 +506,6 @@ textarea {
 textarea {
   min-height: 120px;
   resize: vertical;
-}
-.button-row {
-  display: flex;
-  gap: 8px;
 }
 .list-item {
   display: block;

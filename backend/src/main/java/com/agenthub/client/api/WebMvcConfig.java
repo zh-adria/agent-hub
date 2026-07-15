@@ -17,6 +17,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rbacInterceptor)
                 .addPathPatterns("/api/**")
-                .excludePathPatterns("/api/health", "/mock/**");
+                .excludePathPatterns("/api/auth/**", "/api/health", "/api/health/**", "/mock/**");
     }
 }

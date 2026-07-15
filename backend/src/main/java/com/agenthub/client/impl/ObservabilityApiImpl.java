@@ -36,7 +36,11 @@ public class ObservabilityApiImpl {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("tenantId", TenantContext.externalTenantId());
         response.put("traceCount", traceRepository.findByTenantIdOrderByStartedAtDesc(TenantContext.tenantId()).size());
+        response.put("traceSucceededCount", traceRepository.countByTenantIdAndStatus(TenantContext.tenantId(), "SUCCEEDED"));
+        response.put("traceFailedCount", traceRepository.countByTenantIdAndStatus(TenantContext.tenantId(), "FAILED"));
         response.put("stepRecordCount", stepRecordRepository.countByTenantId(TenantContext.tenantId()));
+        response.put("stepSucceededCount", stepRecordRepository.countByTenantIdAndStatus(TenantContext.tenantId(), "SUCCEEDED"));
+        response.put("stepFailedCount", stepRecordRepository.countByTenantIdAndStatus(TenantContext.tenantId(), "FAILED"));
         response.put("llmAuditRecordCount", auditRecords.size());
         response.put("llmPromptTokens", sumPromptTokens(auditRecords));
         response.put("llmCompletionTokens", sumCompletionTokens(auditRecords));

@@ -2,7 +2,7 @@
   <div class="agent-studio">
     <div class="page-header">
       <h2>Agent 工作台</h2>
-      <button type="button" @click="resetForm">新建 Agent</button>
+      <button v-if="canCreate" type="button" @click="resetForm">新建 Agent</button>
     </div>
     <div class="agent-grid">
       <section>
@@ -14,70 +14,76 @@
             <span>{{ item.model }}</span>
           </div>
           <div class="actions">
-            <button type="button" @click="editAgent(item)">编辑</button>
-            <button type="button" class="danger" @click="deleteAgent(item)">删除</button>
+            <button v-if="canUpdate" type="button" @click="editAgent(item)">编辑</button>
+            <button v-if="canDelete" type="button" class="danger" @click="deleteAgent(item)">删除</button>
           </div>
         </div>
       </section>
 
-      <section>
+      <section v-if="canCreate || canUpdate">
         <h3>{{ agent.id ? '编辑 Agent' : '创建 Agent' }}</h3>
-    <form @submit.prevent="saveAgent">
-      <div class="form-group">
-        <label>Agent 名称</label>
-        <input v-model="agent.name" type="text" required />
-      </div>
-      <div class="form-group">
-        <label>描述</label>
-        <textarea v-model="agent.description"></textarea>
-      </div>
-      <div class="form-group">
-        <label>系统提示词</label>
-        <textarea v-model="agent.prompt" required></textarea>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>模型</label>
-          <input v-model="agent.model" type="text" required />
-        </div>
-        <div class="form-group">
-          <label>温度</label>
-          <input v-model.number="agent.temperature" type="number" min="0" max="2" step="0.1" />
-        </div>
-      </div>
-      <div class="form-group">
-        <label>可用函数</label>
-        <select multiple v-model="agent.functionIds">
-          <option v-for="func in availableFunctions" :key="func.id" :value="func.id">
-            {{ func.name }}
-          </option>
-        </select>
-      </div>
-      <button type="submit">{{ agent.id ? '更新 Agent' : '保存 Agent' }}</button>
-    </form>
+        <form @submit.prevent="saveAgent">
+          <div class="form-group">
+            <label>Agent 名称</label>
+            <input v-model="agent.name" type="text" required />
+          </div>
+          <div class="form-group">
+            <label>描述</label>
+            <textarea v-model="agent.description"></textarea>
+          </div>
+          <div class="form-group">
+            <label>系统提示词</label>
+            <textarea v-model="agent.prompt" required></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>模型</label>
+              <input v-model="agent.model" type="text" required />
+            </div>
+            <div class="form-group">
+              <label>温度</label>
+              <input v-model.number="agent.temperature" type="number" min="0" max="2" step="0.1" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>可用函数</label>
+            <select multiple v-model="agent.functionIds">
+              <option v-for="func in availableFunctions" :key="func.id" :value="func.id">
+                {{ func.name }}
+              </option>
+            </select>
+          </div>
+          <button type="submit">{{ agent.id ? '更新 Agent' : '保存 Agent' }}</button>
+        </form>
       </section>
     </div>
   </div>
 </template>
 
 <script>
-import { apiFetch } from '../../../api';
+import { apiFetch, hasPermission } from '../../../api';
 
 export default {
+  props: {
+    user: { type: Object, default: null }
+  },
   data() {
     return {
       agents: [],
-      agent: {
-        id: null,
-        name: '',
-        description: '',
-        prompt: '',
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-        functionIds: []
-      },
+      agent: this.emptyAgent(),
       availableFunctions: []
     };
+  },
+  computed: {
+    canCreate() {
+      return hasPermission(this.user, 'agent:create');
+    },
+    canUpdate() {
+      return hasPermission(this.user, 'agent:update');
+    },
+    canDelete() {
+      return hasPermission(this.user, 'agent:delete');
+    }
   },
   async created() {
     await Promise.all([this.loadAgents(), this.loadFunctions()]);

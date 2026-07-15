@@ -2,10 +2,9 @@
   <div class="function-registry">
     <div class="page-header">
       <h2>函数注册中心</h2>
-      <button @click="showCreateForm = true">注册函数</button>
+      <button v-if="canCreate" @click="showCreateForm = true">注册函数</button>
     </div>
 
-    <!-- 函数列表 -->
     <div class="function-list">
       <div v-if="functions.length === 0" class="empty">暂无函数</div>
       <div v-for="func in functions" :key="func.id" class="function-card">
@@ -13,14 +12,13 @@
         <p>{{ func.description || '暂无描述' }}</p>
         <span>{{ func.method }} {{ func.endpoint }}</span>
         <div class="actions">
-          <button @click="testFunction(func)">测试</button>
-          <button @click="editFunction(func)">编辑</button>
-          <button class="danger" @click="deleteFunction(func)">删除</button>
+          <button v-if="canInvoke" @click="testFunction(func)">测试</button>
+          <button v-if="canUpdate" @click="editFunction(func)">编辑</button>
+          <button v-if="canDelete" class="danger" @click="deleteFunction(func)">删除</button>
         </div>
       </div>
     </div>
 
-    <!-- 创建/编辑表单 -->
     <div v-if="showCreateForm" class="modal">
       <div class="modal-content">
         <h3>{{ editingFunction ? '编辑函数' : '注册函数' }}</h3>
@@ -48,7 +46,7 @@
           </div>
           <div class="actions">
             <button type="submit">保存</button>
-            <button type="button" @click="showCreateForm = false">取消</button>
+            <button type="button" @click="closeForm">取消</button>
           </div>
         </form>
       </div>
@@ -57,9 +55,12 @@
 </template>
 
 <script>
-import { apiFetch } from '../../../api';
+import { apiFetch, hasPermission } from '../../../api';
 
 export default {
+  props: {
+    user: { type: Object, default: null }
+  },
   data() {
     return {
       functions: [],
@@ -72,6 +73,20 @@ export default {
         method: 'GET'
       }
     };
+  },
+  computed: {
+    canCreate() {
+      return hasPermission(this.user, 'function:create');
+    },
+    canUpdate() {
+      return hasPermission(this.user, 'function:update');
+    },
+    canDelete() {
+      return hasPermission(this.user, 'function:delete');
+    },
+    canInvoke() {
+      return hasPermission(this.user, 'function:invoke');
+    }
   },
   async created() {
     await this.loadFunctions();
@@ -93,9 +108,7 @@ export default {
         alert('函数保存失败');
         return;
       }
-      this.showCreateForm = false;
-      this.editingFunction = null;
-      this.functionForm = { name: '', description: '', endpoint: '', method: 'GET' };
+      this.closeForm();
       await this.loadFunctions();
     },
     editFunction(func) {
@@ -110,7 +123,7 @@ export default {
         body: JSON.stringify({})
       });
       const result = response.ok ? await response.json() : { error: '函数测试失败' };
-      alert(JSON.stringify(result));
+      alert(JSON.stringify(result, null, 2));
     },
     async deleteFunction(func) {
       const response = await apiFetch(`/api/functions/${func.id}`, { method: 'DELETE' });
@@ -119,6 +132,11 @@ export default {
         return;
       }
       await this.loadFunctions();
+    },
+    closeForm() {
+      this.showCreateForm = false;
+      this.editingFunction = null;
+      this.functionForm = { name: '', description: '', endpoint: '', method: 'GET' };
     }
   }
 };
@@ -200,11 +218,8 @@ export default {
 }
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;

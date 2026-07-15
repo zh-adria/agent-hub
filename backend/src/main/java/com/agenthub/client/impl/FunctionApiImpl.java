@@ -83,6 +83,8 @@ public class FunctionApiImpl implements FunctionApi {
             Object response = functionRegistry.invoke(function.getId(), input);
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("functionId", function.getId());
+            result.put("traceId", trace.getId());
+            result.put("stepRecordId", step.getId());
             result.put("status", 200);
             result.put("result", response);
             traceService.completeStep(step, safeJson(result));

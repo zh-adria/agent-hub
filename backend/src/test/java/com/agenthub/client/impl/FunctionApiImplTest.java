@@ -33,6 +33,7 @@ class FunctionApiImplTest {
         FunctionDefinition function = function("10", "lookup");
         TraceEntity trace = trace("trace-1");
         StepRecordEntity step = new StepRecordEntity();
+        step.setId(99L);
         Map<String, Object> output = Collections.singletonMap("answer", "42");
         when(functionRegistryService.getFunction("10")).thenReturn(Optional.of(function));
         when(traceService.start(eq("function.invoke"), eq(null), eq(null), anyString())).thenReturn(trace);
@@ -42,6 +43,9 @@ class FunctionApiImplTest {
         Object result = api.invokeFunction(10L, Collections.singletonMap("input", Collections.singletonMap("q", "life")));
 
         assertThat(result).isInstanceOf(Map.class);
+        assertThat((Map<String, Object>) result)
+                .containsEntry("traceId", "trace-1")
+                .containsEntry("stepRecordId", 99L);
         verify(traceService).completeStep(eq(step), anyString());
         verify(traceService).finish("trace-1", "SUCCEEDED");
     }

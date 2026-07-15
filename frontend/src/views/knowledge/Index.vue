@@ -7,13 +7,13 @@
     <div class="layout">
       <section class="panel">
         <h3>知识库列表</h3>
-        <form class="inline-form" @submit.prevent="createKnowledgeBase">
+        <form v-if="canCreate" class="inline-form" @submit.prevent="createKnowledgeBase">
           <input v-model="knowledgeBaseForm.name" placeholder="知识库名称" required />
           <input v-model="knowledgeBaseForm.description" placeholder="描述" />
           <button type="submit">创建</button>
         </form>
         <div v-if="knowledgeBases.length === 0" class="empty">暂无知识库</div>
-        <button v-if="selectedKnowledgeBase" type="button" class="danger-button" @click="deleteKnowledgeBase">
+        <button v-if="selectedKnowledgeBase && canDelete" type="button" class="danger-button" @click="deleteKnowledgeBase">
           删除当前知识库
         </button>
         <button
@@ -31,14 +31,14 @@
 
       <section class="panel">
         <h3>文档</h3>
-        <form v-if="selectedKnowledgeBase" class="inline-form" @submit.prevent="createDocument">
+        <form v-if="selectedKnowledgeBase && canCreate" class="inline-form" @submit.prevent="createDocument">
           <input v-model="documentForm.title" placeholder="文档标题" required />
           <input v-model="documentForm.sourceUri" placeholder="来源 URI" />
           <button type="submit">添加文档</button>
         </form>
         <div v-if="!selectedKnowledgeBase" class="empty">先选择知识库</div>
         <div v-else-if="documents.length === 0" class="empty">暂无文档</div>
-        <button v-if="selectedDocument" type="button" class="danger-button" @click="deleteDocument">
+        <button v-if="selectedDocument && canDelete" type="button" class="danger-button" @click="deleteDocument">
           删除当前文档
         </button>
         <button
@@ -55,8 +55,8 @@
       </section>
 
       <section class="panel">
-        <h3>分块</h3>
-        <form v-if="selectedKnowledgeBase" class="inline-form" @submit.prevent="searchKnowledgeBase">
+        <h3>分块与检索</h3>
+        <form v-if="selectedKnowledgeBase && canSearch" class="inline-form" @submit.prevent="searchKnowledgeBase">
           <input v-model="searchForm.query" placeholder="检索知识库" required />
           <button type="submit">检索</button>
         </form>
@@ -70,7 +70,7 @@
             <p>{{ result.content }}</p>
           </div>
         </div>
-        <form v-if="selectedDocument" class="chunk-form" @submit.prevent="createChunk">
+        <form v-if="selectedDocument && canCreate" class="chunk-form" @submit.prevent="createChunk">
           <textarea v-model="chunkForm.content" placeholder="分块内容" required></textarea>
           <button type="submit">添加分块</button>
         </form>
@@ -79,7 +79,7 @@
         <div v-for="chunk in chunks" :key="chunk.id" class="chunk">
           <div class="chunk-header">
             <div class="chunk-index">#{{ chunk.chunkIndex }}</div>
-            <button type="button" @click="deleteChunk(chunk)">删除</button>
+            <button v-if="canDelete" type="button" @click="deleteChunk(chunk)">删除</button>
           </div>
           <p>{{ chunk.content }}</p>
         </div>
@@ -89,9 +89,12 @@
 </template>
 
 <script>
-import { apiFetch } from '../../api';
+import { apiFetch, hasPermission } from '../../api';
 
 export default {
+  props: {
+    user: { type: Object, default: null }
+  },
   data() {
     return {
       knowledgeBases: [],
@@ -116,6 +119,17 @@ export default {
       },
       searchResults: []
     };
+  },
+  computed: {
+    canCreate() {
+      return hasPermission(this.user, 'knowledge:create');
+    },
+    canDelete() {
+      return hasPermission(this.user, 'knowledge:delete');
+    },
+    canSearch() {
+      return hasPermission(this.user, 'knowledge:search');
+    }
   },
   async created() {
     await this.loadKnowledgeBases();
