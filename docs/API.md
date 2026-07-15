@@ -421,7 +421,7 @@ POST /knowledge-bases/{knowledgeBaseId}/search
 | 404 | 资源不存在 |
 | 429 | 请求频率超限 |
 | 500 | 服务端错误 |
-# 新增 AI 能力 API 摘要
+# 一级 AI 能力 API 摘要
 
 ## Workflow
 

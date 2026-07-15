@@ -3,8 +3,12 @@
 ## 剩余产品工作
 
 - 补充端到端 API/前端测试，覆盖 Agent/Function/Session 主流程
-- 如果需要实时会话 UI，实现完整的 WebSocket/聊天流式传输
-- 在核心功能稳定后添加生产级认证/授权（RBAC）和租户 enforcement
+- Agent Runtime：结构化 tool call、WebSocket 真流式增量、运行超时和错误归类
+- Tool / MCP：补全 MCP schema 映射、工具权限、参数校验、执行超时
+- Knowledge / RAG：Milvus 生产配置、Embedding/Rerank 失败策略、文档权限过滤契约
+- Multi-Agent Workflow：并行 DAG、节点级重试/超时、checkpoint/resume、human-in-the-loop
+- AgentOps / Governance：生产级认证/授权（RBAC）和租户 enforcement、LLM usage audit 持久化、评估指标插件化
+- Enterprise Channels：真实飞书/企微签名验签、消息幂等、BotBinding 密钥轮换
 - 生产部署准备（监控、日志、健康检查等运维基础设施）
 
 ## 当前进度
@@ -37,6 +41,8 @@
 - 后续增强：WebSocket 直连 Token Router 真流式增量、评估指标插件化、真实飞书/企微签名验签
 
 ## AI 业务方向路线图
+
+路线图按六个一级产品域维护：Agent Runtime、Tool / MCP、Knowledge / RAG、Multi-Agent Workflow、AgentOps / Governance、Enterprise Channels。新能力必须落入其中之一，否则默认不进入当前项目边界。
 
 ### Phase 0 — 基础设施（必须先做，1-2 周）
 
@@ -72,8 +78,9 @@
 
 ### 决策原则
 
-1. **边界内优先**：所有方向均在项目边界声明的所有权内
+1. **六域内优先**：所有方向必须落入 Agent Runtime、Tool / MCP、Knowledge / RAG、Multi-Agent Workflow、AgentOps / Governance、Enterprise Channels 之一
 2. **LLM 网关是唯一 LLM 入口**：Embedding、Rerank、评估用的模型调用全部走 LLM 网关
 3. **持久层先做**：Phase 0 是所有上游的前提
 4. **MCP 优先于自研工具发现**：优先适配行业标准
-5. **可观测性放在业务能力之后**：先有可运行的 Agent / RAG / DAG，再评估可观测性需求
+5. **AgentOps 围绕运行链路**：Trace、StepRecord、Evaluation 服务 Agent / Session / Workflow，不发展成独立 APM 产品
+6. **RAG 服务 Agent 运行**：不发展成独立企业知识管理平台

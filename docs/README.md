@@ -1,10 +1,10 @@
 # AgentHub
 
-企业级 AI Agent 开发、部署、管理平台。
+企业级 AI Agent 基础设施与运行平台，覆盖 Agent Runtime、Tool / MCP、Knowledge / RAG、Multi-Agent Workflow、AgentOps / Governance、Enterprise Channels 六个一级产品域。
 
 ## 文档
 
-- [项目边界](PROJECT_BOUNDARY.md) — 所有权划分、集成契约
+- [项目边界](PROJECT_BOUNDARY.md) — 六个一级产品域、所有权划分、non-goals、集成契约
 - [任务清单](TASKS.md) — 优先级排序的任务状态和 AI 业务方向路线图
 - [技术架构](ARCHITECTURE.md) — 整体架构、领域模型、技术选型、安全设计、运维手册
 - [API 契约](API.md) — REST API 端点与 Schema

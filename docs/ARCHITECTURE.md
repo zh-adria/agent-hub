@@ -2,7 +2,9 @@
 
 ## 定位
 
-AgentHub 是企业级 AI Agent 开发、部署、管理平台。LLM 模型调用通过 HTTP 与外部 LLM 网关集成，AgentHub 不直接调用 LLM 提供商 SDK。
+AgentHub 是企业级 AI Agent 基础设施与运行平台。它拥有 Agent Runtime、Tool / MCP、Knowledge / RAG、Multi-Agent Workflow、AgentOps / Governance、Enterprise Channels 六个一级产品域。
+
+LLM 模型调用通过 HTTP 与外部 LLM 网关集成，AgentHub 不直接调用 LLM 提供商 SDK，也不承担模型路由、Provider 健康、预算降级、LLM 账单事实源职责。完整产品边界见 [PROJECT_BOUNDARY.md](PROJECT_BOUNDARY.md)。
 
 ## 整体架构
 
@@ -17,45 +19,56 @@ AgentHub 是企业级 AI Agent 开发、部署、管理平台。LLM 模型调用
 └───────────────────────────┬─────────────────────────────────┘
                             │ HTTPS/REST
 ┌───────────────────────────▼─────────────────────────────────┐
-│                    Backend (COLA Architecture)               │
+│               Backend (Spring Boot, package layering)        │
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │                    App Layer (Application)              ││
+│  │                    API / App Layer                      ││
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ ││
-│  │  │AgentAppSvc  │  │FunctionApp  │  │GovernanceApp    │ ││
+│  │  │Agent API    │  │Workflow API │  │AgentOps API     │ ││
 │  │  └─────────────┘  └─────────────┘  └─────────────────┘ ││
 │  └─────────────────────────────────────────────────────────┘│
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │                   Domain Layer (Domain)                 ││
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ ││
-│  │  │ Agent       │  │ Function    │  │ Governance      │ ││
-│  │  │ Aggregate   │  │ Aggregate   │  │ Aggregate       │ ││
+│  │  │ Runtime     │  │ Tool / MCP  │  │ RAG / Workflow  │ ││
+│  │  │ Services    │  │ Services    │  │ Services        │ ││
 │  │  └─────────────┘  └─────────────┘  └─────────────────┘ ││
 │  └─────────────────────────────────────────────────────────┘│
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │              Infrastructure Layer (Infrastructure)       ││
+│  │              Infrastructure / Adapter Layer              ││
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ ││
-│  │  │LLM Gateway  │  │ Vector DB   │  │ Sandbox         │ ││
+│  │  │LLM Gateway  │  │ Vector DB   │  │ Webhook / MCP   │ ││
 │  │  │  Client     │  │  Adapter    │  │  Adapter        │ ││
 │  │  └─────────────┘  └─────────────┘  └─────────────────┘ ││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
                             │
-            ┌───────────────┼───────────────┐
-            │               │               │
-       ┌────▼────┐    ┌────▼────┐    ┌────▼────┐
-       │  LLM    │    │ Vector  │    │ Docker  │
-       │ Gateway │    │ Store   │    │Sandbox  │
-       └─────────┘    └─────────┘    └─────────┘
+       ┌────────▼───────┐ ┌──────▼──────┐ ┌──────▼──────┐
+       │  LLM Gateway   │ │ Vector Store│ │ Enterprise  │
+       │ Chat/Embed/Rer │ │ Milvus/local│ │ Webhooks/MCP│
+       └────────────────┘ └─────────────┘ └─────────────┘
 ```
 
-### COLA 四层架构映射
+### 产品域映射
 
-| COLA 层 | 对应 | 职责 |
-|---------|------|------|
-| **App Layer** | `agenthub-app` | 应用服务编排、用例实现、DTO 转换 |
-| **Domain Layer** | `agenthub-domain` | 领域模型、业务规则、聚合根、领域服务 |
-| **Infrastructure Layer** | `agenthub-infra` | 外部依赖实现、持久化、消息队列、缓存 |
-| **Client Layer** | `agenthub-client` | DTO、Mapper |
+| 产品域 | 核心代码 | 职责 |
+|--------|----------|------|
+| Agent Runtime | `domain/service/ReActEngine.java`、`SessionMessageService.java`、`client/ws/` | Session、ReAct、流式会话 |
+| Tool / MCP | `FunctionRegistryService*`、`client/impl/McpApiImpl.java` | Function Registry、工具导入、工具调用 |
+| Knowledge / RAG | `KnowledgeBase*`、`RagDocument*`、`HybridSearchService.java`、`RerankService.java` | 知识库、文档、分块、检索、rerank |
+| Multi-Agent Workflow | `WorkflowExecutionService.java`、`WorkflowDefinitionEntity.java` | DAG 定义、拓扑执行、workflow trace |
+| AgentOps / Governance | `TraceService.java`、`client/audit/`、`client/auth/`、`ObservabilityApiImpl.java` | 租户、RBAC、Trace、StepRecord、LLM usage audit、评估 |
+| Enterprise Channels | `BotApiImpl.java`、`BotBindingEntity.java` | Bot 绑定、飞书/企微/通用 webhook adapter |
+
+### 后端分层映射
+
+当前实现是单 Spring Boot 模块，按 package 分层，不是独立 Maven 多模块。
+
+| 层 | 对应 package | 职责 |
+|----|--------------|------|
+| API / Client | `com.agenthub.client` | REST / WebSocket API、认证过滤、外部 adapter controller |
+| Domain | `com.agenthub.domain` | 领域模型、Repository 接口、运行时服务、RAG/Workflow 编排 |
+| Infrastructure | `com.agenthub.infra` | JPA Entity、Spring Data Repository、持久化实现 |
+| Resources | `src/main/resources` | 配置、数据库初始化、mapper 资源 |
 
 ---
 
@@ -63,57 +76,42 @@ AgentHub 是企业级 AI Agent 开发、部署、管理平台。LLM 模型调用
 
 ```
 agent-hub/
-├── agent-hub-app/                    # 应用层
-│   └── src/main/java/com/agenthub/app/
-│       ├── agent/          # AgentAppService、DTO
-│       ├── function/       # FunctionRegistryService
-│       └── governance/     # Audit、Permission、Cost
-│
-├── agent-hub-domain/                 # 领域层
-│   └── src/main/java/com/agenthub/domain/
-│       ├── agent/
-│       │   ├── model/      # Agent（聚合根）、AgentId、AgentConfig
-│       │   ├── repository/ # AgentRepository 接口
-│       │   ├── service/    # AgentRuntimeService
-│       │   └── event/      # AgentCreatedEvent
-│       ├── function/
-│       │   ├── model/      # FunctionDefinition（聚合根）
-│       │   └── repository/ # FunctionRepository 接口
-│       ├── governance/
-│       │   ├── model/      # AuditLog、Permission、CostRecord
-│       │   └── service/    # AuditService、CostCalculationService
-│       └── common/
-│           ├── BaseEntity.java
-│           └── ValueObject.java
-│
-├── agent-hub-infra/                  # 基础设施层
-│   └── src/main/java/com/agenthub/infra/
-│       ├── llm/            # LLM Gateway Client
-│       ├── vector/         # VectorStore、QdrantVectorStore
-│       ├── sandbox/        # SandboxManager、DockerSandboxManager
-│       └── config/         # MybatisPlusConfig、RedisConfig
-│
-├── agent-hub-client/                 # 客户端层
-│   └── src/main/java/com/agenthub/client/
-│       ├── agent/          # AgentDTO
-│       └── function/       # FunctionDTO
-│
-└── pom.xml
+├── backend/
+│   ├── pom.xml
+│   └── src/main/java/com/agenthub/
+│       ├── AgentHubBackendApplication.java
+│       ├── client/
+│       │   ├── api/          # REST API、异常处理、请求上下文
+│       │   ├── auth/         # 外部认证、RBAC、TenantContext 接入
+│       │   ├── audit/        # LLM usage audit 查询入口
+│       │   ├── impl/         # Agent/Function/RAG/Workflow/Trace/Bot/Eval API 实现
+│       │   ├── tokenrouter/  # 外部 LLM 网关 HTTP client 与 DTO
+│       │   └── ws/           # Session WebSocket chat
+│       ├── domain/
+│       │   ├── context/      # TenantContext
+│       │   ├── model/        # Agent、Function、Session、KnowledgeBase、RAG model
+│       │   ├── port/         # LLMClient、FunctionRegistry 等端口
+│       │   ├── repository/   # Repository 接口与领域侧 adapter
+│       │   └── service/      # ReAct、RAG、Workflow、Trace 等领域服务
+│       └── infra/
+│           └── persistence/
+│               ├── entity/     # JPA Entity
+│               └── repository/ # Spring Data JPA Repository
+├── frontend/
+└── docs/
 ```
 
 ## 前端模块结构
 
 ```
-agent-hub-frontend/
+frontend/
 ├── src/
-│   ├── api/                # API 接口
-│   ├── components/         # 通用组件
+│   ├── api.ts              # API 接口
 │   ├── views/              # 页面
 │   │   ├── agents/AgentStudio/Index.vue
 │   │   ├── functions/FunctionRegistry/Index.vue
+│   │   ├── knowledge/Index.vue
 │   │   └── sessions/Index.vue
-│   ├── router/
-│   ├── store/              # Pinia
 │   └── App.vue
 ├── package.json
 ├── vite.config.ts
@@ -173,6 +171,8 @@ public class FunctionDefinition extends BaseEntity<FunctionId> {
 ```
 
 ### AgentSession（聚合根）
+
+当前实现重点是 Session 消息历史与短期上下文。长期记忆、跨会话摘要、可撤销用户偏好属于后续增强，不作为当前生产级事实源。
 
 ```java
 public class AgentSession extends BaseEntity<SessionId> {
@@ -292,13 +292,14 @@ AgentHub 将策略拒绝和预算拒绝响应映射为运行时步骤失败。
 
 | 技术 | 选型 | 理由 |
 |------|------|------|
-| 框架 | Spring Boot 3.2 + COLA Archetype | DDD 架构 |
-| ORM | MyBatis-Plus | COLA 标配 |
-| 数据库 | MySQL 8.0 + Redis 7 | 主从架构 |
-| 向量数据库 | Qdrant / Milvus | 开源高性能 |
-| 沙箱 | Docker + gVisor | 安全隔离 |
-| 链路追踪 | OpenTelemetry + Jaeger | 云原生标准 |
-| 监控 | Prometheus + Grafana | 指标监控 |
+| 框架 | Spring Boot 2.7.x + Java 8 | 当前 `backend/pom.xml` 实际选型 |
+| ORM | Spring Data JPA | 当前持久层实现 |
+| 数据库 | MySQL 8.0，测试使用 H2 | Agent、Session、RAG、Trace、Workflow 等持久化 |
+| 缓存 | Redis | 限流、会话或后续分布式能力预留 |
+| 向量存储 | 本地向量表 MVP + Milvus HTTP adapter | 本地闭环与外部向量库接入并存 |
+| LLM 集成 | 外部 LLM 网关 HTTP client | Chat、Embedding、Rerank、Evaluation 统一入口 |
+| 实时通道 | Spring WebSocket | Session chat 流式事件 MVP |
+| 可观测性 | Trace / StepRecord / Observability API | 当前产品内 AgentOps 能力 |
 
 ### 前端
 
@@ -464,35 +465,50 @@ kubectl rollout undo deployment/backend -n agent-hub
 
 ---
 
-## 实施计划
+## 实施路线
 
-### Phase 0 — 基础设施（第 1 周）
+当前项目已完成 Agent / Function / Session / RAG / Workflow / MCP / Trace / Evaluation / Bot Binding 的 MVP 闭环。后续实施不再按单纯基础设施阶段推进，而按六个产品域补齐生产能力。
 
-使用 COLA Archetype 生成项目骨架，前端脚手架初始化，CI/CD 流水线，Docker Compose 开发环境。
+### Phase A — Agent Runtime 生产化
 
-### Phase 1 — 核心领域层（第 2-3 周）
+- 结构化 tool call 协议，替换文本 `FUNCTION_CALL:` 标记解析
+- WebSocket 直连 LLM 网关真流式增量
+- 运行超时、最大 token、循环保护、错误归类
+- Session 短期上下文压缩策略
 
-领域模型设计（Agent、Function、Session），Repository 接口定义，DO 与 Mapper 实现，单元测试（覆盖率 > 80%）。
+### Phase B — Tool / MCP 标准化
 
-### Phase 2 — Agent Runtime（第 4-6 周）
+- MCP tool schema 到 FunctionDefinition 的完整映射
+- 工具权限、参数校验、执行超时、错误标准化
+- Function invoke 审计与 trace step 关联
 
-LLM 客户端、ReAct Engine、Tool Execution、Sandbox 沙箱。
+### Phase C — Knowledge / RAG 增强
 
-### Phase 3 — 应用服务（第 7-8 周）
+- Milvus adapter 生产配置与健康检查
+- Embedding / Rerank 网关失败策略
+- 文档分块策略配置化
+- 检索结果权限过滤的外部契约
 
-Agent CRUD、Agent Chat、Function Registry、Session 管理。
+### Phase D — Multi-Agent Workflow 增强
 
-### Phase 4 — 治理与可观测性（第 9-10 周）
+- DAG 并行执行
+- 节点级重试、超时、失败补偿
+- checkpoint / resume
+- human-in-the-loop 节点
 
-审计日志、成本归因、权限控制、监控告警。
+### Phase E — AgentOps / Governance 产品化
 
-### Phase 5 — 前端开发（第 7-11 周，并行）
+- RBAC / tenant enforcement 覆盖所有资源
+- Evaluation 指标插件化
+- LLM usage audit 持久化
+- Trace / StepRecord 查询维度补全
 
-Agent Studio、Agent 管理、Function Market、治理面板。
+### Phase F — Enterprise Channels 加固
 
-### Phase 6 — 集成测试与部署（第 12 周）
-
-端到端测试、性能测试、安全测试、生产部署。
+- 飞书 / 企微真实签名验签
+- channel 消息幂等与重放保护
+- channel 级 session 生命周期策略
+- BotBinding 密钥轮换
 
 ---
 
@@ -506,7 +522,7 @@ services:
   frontend:           # Vite 前端
   mysql:              # MySQL 8.0
   redis:              # Redis 7
-  qdrant:             # 向量数据库
+  vector-store:       # Milvus 或本地向量存储 adapter
 ```
 
 ### 生产环境（K8s）
@@ -514,10 +530,10 @@ services:
 ```
 Nginx (Reverse Proxy)
   → Frontend (Vue 3)
-  → Backend API (Spring Boot + COLA, 3 replicas)
+  → Backend API (Spring Boot, 3 replicas)
   ↓
 Service Mesh (Nacos)
   → MySQL (1主3从)
   → Redis (6主)
-  → Qdrant (3节点)
+  → Milvus / Vector Store (3节点)
 ```
