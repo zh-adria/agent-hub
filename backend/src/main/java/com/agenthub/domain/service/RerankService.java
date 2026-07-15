@@ -1,6 +1,7 @@
 package com.agenthub.domain.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.LinkedHashMap;
@@ -12,7 +13,6 @@ import java.util.Set;
 @Service
 public class RerankService {
     private final AiIntegrationProperties properties;
-    private final RestTemplate restTemplate = new RestTemplate();
 
     public RerankService() {
         this(new AiIntegrationProperties());
@@ -26,8 +26,10 @@ public class RerankService {
         if (externalEnabled()) {
             try {
                 return externalRerank(query, content, vectorScore, keywordScore);
-            } catch (Exception ignored) {
-                // Heuristic rerank is deterministic fallback for local dev and gateway outages.
+            } catch (Exception ex) {
+                if (!properties.getRerank().isFallbackOnFailure()) {
+                    throw new IllegalStateException("External rerank failed", ex);
+                }
             }
         }
         double overlapScore = overlapScore(query, content);
@@ -113,11 +115,21 @@ public class RerankService {
         request.put("content", content);
         request.put("vectorScore", vectorScore);
         request.put("keywordScore", keywordScore);
-        Map<String, Object> response = restTemplate.postForObject(properties.getRerank().getUrl(), request, Map.class);
+        Map<String, Object> response = restTemplate().postForObject(properties.getRerank().getUrl(), request, Map.class);
         Object score = response != null ? response.get("score") : null;
         if (score == null) {
             throw new IllegalArgumentException("External rerank response missing score");
         }
         return Double.parseDouble(String.valueOf(score));
+    }
+
+    private RestTemplate restTemplate() {
+        int timeout = properties.getRerank().getTimeoutMs() != null && properties.getRerank().getTimeoutMs() > 0
+                ? properties.getRerank().getTimeoutMs()
+                : 3000;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(timeout);
+        factory.setReadTimeout(timeout);
+        return new RestTemplate(factory);
     }
 }

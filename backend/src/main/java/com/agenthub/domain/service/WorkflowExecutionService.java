@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 @Service
 public class WorkflowExecutionService {
@@ -40,38 +42,90 @@ public class WorkflowExecutionService {
 
     public Map<String, Object> execute(WorkflowDefinitionEntity workflow, Map<String, Object> payload) {
         List<Node> nodes = parseNodes(workflow.getDefinition());
-        List<Node> ordered = topologicalSort(nodes);
+        topologicalSort(nodes);
         String input = stringValue(payload.get("input"), "");
         TraceEntity trace = traceService.start("workflow:" + workflow.getName(), null, workflow.getId(), toJson(payload));
         Map<String, String> outputs = new LinkedHashMap<>();
         List<Map<String, Object>> stepResponses = new ArrayList<>();
+        Set<String> completed = new LinkedHashSet<>();
         String status = "SUCCEEDED";
+        Long tenantId = TenantContext.tenantId();
+        String externalTenantId = TenantContext.externalTenantId();
+        String userId = TenantContext.userId();
+        ExecutorService executor = Executors.newFixedThreadPool(Math.max(1, Math.min(4, nodes.size())));
 
-        for (Node node : ordered) {
-            String nodeInput = buildNodeInput(input, node, outputs);
-            String sessionId = UUID.randomUUID().toString();
-            StepRecordEntity step = traceService.startStep(trace.getId(), sessionId, workflow.getId(), node.id, node.agentId, nodeInput);
-            try {
-                String output = executeNode(node, sessionId, nodeInput);
-                outputs.put(node.id, output);
-                step = traceService.completeStep(step, output);
-            } catch (Exception ex) {
-                status = "FAILED";
-                step = traceService.failStep(step, ex.getMessage());
-                stepResponses.add(mapStep(step));
-                break;
+        try {
+            while (completed.size() < nodes.size()) {
+                List<Node> ready = readyNodes(nodes, completed);
+                if (ready.isEmpty()) {
+                    throw new IllegalArgumentException("Workflow has unresolved dependencies");
+                }
+                Optional<Node> humanNode = ready.stream().filter(Node::human).findFirst();
+                if (humanNode.isPresent()) {
+                    Node node = humanNode.get();
+                    String nodeInput = buildNodeInput(input, node, outputs);
+                    StepRecordEntity step = traceService.startStep(trace.getId(), null, workflow.getId(), node.id, node.agentId, nodeInput);
+                    step.setStatus("WAITING_APPROVAL");
+                    step.setOutput("Waiting for human approval");
+                    step.setEndedAt(LocalDateTime.now());
+                    stepResponses.add(mapStep(traceService.saveStep(step)));
+                    status = "WAITING_APPROVAL";
+                    traceService.finish(trace.getId(), status);
+                    return response(workflow, trace, status, outputs, stepResponses, checkpoint(nodes, completed, node.id));
+                }
+
+                Map<Node, Future<NodeResult>> futures = new LinkedHashMap<>();
+                for (Node node : ready) {
+                    String nodeInput = buildNodeInput(input, node, outputs);
+                    futures.put(node, executor.submit(() -> {
+                        TenantContext.set(tenantId, externalTenantId, userId);
+                        try {
+                            return executeNodeWithRetry(trace, workflow, node, nodeInput);
+                        } finally {
+                            TenantContext.clear();
+                        }
+                    }));
+                }
+
+                for (Map.Entry<Node, Future<NodeResult>> entry : futures.entrySet()) {
+                    Node node = entry.getKey();
+                    try {
+                        NodeResult result = entry.getValue().get(node.timeoutMs, TimeUnit.MILLISECONDS);
+                        outputs.put(node.id, result.output);
+                        completed.add(node.id);
+                        stepResponses.add(mapStep(result.step));
+                    } catch (Exception ex) {
+                        status = "FAILED";
+                        entry.getValue().cancel(true);
+                        stepResponses.add(errorStep(node, ex));
+                        traceService.finish(trace.getId(), status);
+                        return response(workflow, trace, status, outputs, stepResponses, checkpoint(nodes, completed, null));
+                    }
+                }
             }
-            stepResponses.add(mapStep(step));
+        } finally {
+            executor.shutdownNow();
         }
         traceService.finish(trace.getId(), status);
+        return response(workflow, trace, status, outputs, stepResponses, checkpoint(nodes, completed, null));
+    }
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("workflowId", workflow.getId());
-        response.put("traceId", trace.getId());
-        response.put("status", status);
-        response.put("outputs", outputs);
-        response.put("steps", stepResponses);
-        return response;
+    private NodeResult executeNodeWithRetry(TraceEntity trace, WorkflowDefinitionEntity workflow, Node node, String nodeInput) {
+        Exception last = null;
+        int attempts = Math.max(1, node.retry + 1);
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            String sessionId = UUID.randomUUID().toString();
+            String stepKey = attempts > 1 ? node.id + "#attempt-" + attempt : node.id;
+            StepRecordEntity step = traceService.startStep(trace.getId(), sessionId, workflow.getId(), stepKey, node.agentId, nodeInput);
+            try {
+                String output = executeNode(node, sessionId, nodeInput);
+                return new NodeResult(output, traceService.completeStep(step, output));
+            } catch (Exception ex) {
+                last = ex;
+                traceService.failStep(step, ex.getMessage());
+            }
+        }
+        throw new IllegalStateException(last != null ? last.getMessage() : "Workflow node failed");
     }
 
     private String executeNode(Node node, String sessionId, String input) {
@@ -112,14 +166,17 @@ public class WorkflowExecutionService {
                 node.id = stringValue(item.get("id"), "");
                 node.agentId = stringValue(item.get("agentId"), "");
                 node.input = stringValue(item.get("input"), "");
+                node.type = stringValue(item.get("type"), "agent");
+                node.retry = intValue(item.get("retry"), 0);
+                node.timeoutMs = intValue(item.get("timeoutMs"), 30000);
                 Object dependsOn = item.get("dependsOn");
                 if (dependsOn instanceof List) {
                     for (Object dependency : (List<Object>) dependsOn) {
                         node.dependsOn.add(String.valueOf(dependency));
                     }
                 }
-                if (node.id.isEmpty() || node.agentId.isEmpty()) {
-                    throw new IllegalArgumentException("Workflow node requires id and agentId");
+                if (node.id.isEmpty() || (!node.human() && node.agentId.isEmpty())) {
+                    throw new IllegalArgumentException("Workflow node requires id and agentId for agent nodes");
                 }
                 nodes.add(node);
             }
@@ -141,6 +198,13 @@ public class WorkflowExecutionService {
             visit(node, byId, visiting, visited, ordered);
         }
         return ordered;
+    }
+
+    private List<Node> readyNodes(List<Node> nodes, Set<String> completed) {
+        return nodes.stream()
+                .filter(node -> !completed.contains(node.id))
+                .filter(node -> completed.containsAll(node.dependsOn))
+                .collect(Collectors.toList());
     }
 
     private void visit(Node node, Map<String, Node> byId, Set<String> visiting, Set<String> visited, List<Node> ordered) {
@@ -196,8 +260,52 @@ public class WorkflowExecutionService {
         return response;
     }
 
+    private Map<String, Object> response(
+            WorkflowDefinitionEntity workflow,
+            TraceEntity trace,
+            String status,
+            Map<String, String> outputs,
+            List<Map<String, Object>> stepResponses,
+            Map<String, Object> checkpoint) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("workflowId", workflow.getId());
+        response.put("traceId", trace.getId());
+        response.put("status", status);
+        response.put("outputs", outputs);
+        response.put("steps", stepResponses);
+        response.put("checkpoint", checkpoint);
+        return response;
+    }
+
+    private Map<String, Object> checkpoint(List<Node> nodes, Set<String> completed, String waitingNodeId) {
+        Map<String, Object> checkpoint = new LinkedHashMap<>();
+        checkpoint.put("completedNodeIds", new ArrayList<>(completed));
+        checkpoint.put("waitingNodeId", waitingNodeId);
+        List<String> pending = nodes.stream()
+                .map(node -> node.id)
+                .filter(id -> !completed.contains(id))
+                .collect(Collectors.toList());
+        checkpoint.put("pendingNodeIds", pending);
+        return checkpoint;
+    }
+
+    private Map<String, Object> errorStep(Node node, Exception ex) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("stepKey", node.id);
+        response.put("agentId", node.agentId);
+        response.put("status", "FAILED");
+        response.put("error", ex.getMessage());
+        return response;
+    }
+
     private String stringValue(Object value, String fallback) {
         return value != null ? String.valueOf(value) : fallback;
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number) return ((Number) value).intValue();
+        if (value instanceof String && !((String) value).isEmpty()) return Integer.parseInt((String) value);
+        return fallback;
     }
 
     private String toJson(Object value) {
@@ -212,6 +320,23 @@ public class WorkflowExecutionService {
         private String id;
         private String agentId;
         private String input;
+        private String type;
+        private int retry;
+        private int timeoutMs = 30000;
         private final List<String> dependsOn = new ArrayList<>();
+
+        private boolean human() {
+            return "human".equalsIgnoreCase(type) || "approval".equalsIgnoreCase(type) || "human-in-loop".equalsIgnoreCase(type);
+        }
+    }
+
+    private static class NodeResult {
+        private final String output;
+        private final StepRecordEntity step;
+
+        private NodeResult(String output, StepRecordEntity step) {
+            this.output = output;
+            this.step = step;
+        }
     }
 }

@@ -134,7 +134,14 @@ public class JpaSessionRepository implements SessionRepository {
             return new ArrayList<>();
         }
         try {
-            Map<String, Object> payload = objectMapper.readValue(context, new TypeReference<Map<String, Object>>() {});
+            Object parsed = objectMapper.readValue(context, Object.class);
+            if (parsed instanceof String) {
+                return contextToMessages((String) parsed, sessionId);
+            }
+            if (!(parsed instanceof Map)) {
+                return new ArrayList<>();
+            }
+            Map<?, ?> payload = (Map<?, ?>) parsed;
             Object rawMessages = payload.get("messages");
             if (!(rawMessages instanceof List)) {
                 return new ArrayList<>();

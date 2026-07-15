@@ -28,6 +28,8 @@ scripts\stop.bat 18091 15191
 
 - 前端：`http://127.0.0.1:5173`
 - 后端健康检查：`http://127.0.0.1:8080/api/health`
+- 存活检查：`http://127.0.0.1:8080/api/health/live`
+- 就绪检查：`http://127.0.0.1:8080/api/health/ready`
 
 ## 页面使用
 
@@ -99,9 +101,60 @@ type .run\logs\frontend.err.log
 
 - 本地启动默认使用 `dev` profile 和 H2 内存库，重启后数据会清空。
 - RAG 默认使用本地向量表，配置 `agenthub.ai.milvus.enabled=true` 后可接 Milvus HTTP adapter。
-- Embedding / Rerank 默认本地 fallback，配置外部 URL 后走 LLM gateway 或兼容网关。
-- WebSocket 当前按最终回复切 chunk 推送；Token Router 真增量流式可作为后续增强。
-- 飞书/企微 webhook 当前使用通用 payload 和 shared secret，真实平台签名验签可作为后续增强。
+- Embedding / Rerank 默认本地 fallback。生产可设置 `fallback-on-failure=false` 进入 strict 模式。
+- WebSocket 已走 Token Router stream 接口；如果外部网关不支持流式，会回退为一次性 chunk。
+- 飞书/企微 webhook 当前支持通用 HMAC-SHA256 签名、messageId 幂等、secret 轮换；平台原生事件结构仍走 adapter 层映射。
+
+## 生产关键配置
+
+LLM 网关：
+
+```yaml
+token-router:
+  base-url: https://token.sensenova.cn/v1
+  completion-path: /api/chat/completions
+  stream-completion-path: /api/chat/completions/stream
+```
+
+密钥通过环境变量或部署平台 secret 注入，不写入仓库配置文件。建议由外部 LLM 网关或运行环境读取。
+
+RAG 外部能力：
+
+```yaml
+agenthub:
+  ai:
+    embedding:
+      external-enabled: true
+      url: https://token.sensenova.cn/v1/embeddings
+      timeout-ms: 3000
+      fallback-on-failure: true
+    rerank:
+      external-enabled: true
+      url: https://token.sensenova.cn/v1/rerank
+      timeout-ms: 3000
+      fallback-on-failure: true
+    milvus:
+      enabled: true
+      url: http://milvus-adapter:8080
+      timeout-ms: 3000
+      fallback-on-failure: true
+```
+
+## 监控与告警
+
+健康检查：
+
+- `/api/health/live`：进程存活。
+- `/api/health/ready`：数据库可连接，Milvus 可用性展示。
+- `/api/health`：服务和 AI adapter 配置摘要。
+
+建议告警：
+
+- `ready.status != UP` 持续 2 分钟。
+- `trace.status = FAILED` 比例 5 分钟内超过 5%。
+- `stepRecord.status = FAILED` 比例 5 分钟内超过 10%。
+- LLM audit `totalTokens` 或 `cost` 单租户异常上涨。
+- Bot webhook duplicate 比例异常上涨，可能表示上游重放。
 
 # Runtime Extensions
 
@@ -127,7 +180,27 @@ ws://127.0.0.1:8080/ws/sessions?token=mock-token&tenantId=tenant-001
 POST /api/bots/webhooks/{channel}
 ```
 
-若 BotBinding 设置了 `secret`，调用方必须提供 `X-Bot-Secret` header 或 payload `secret`。
+若 BotBinding 设置了 `secret`，调用方可使用旧兼容方式提供 `X-Bot-Secret` header 或 payload `secret`。
+
+推荐签名方式：
+
+- Header `X-Bot-Timestamp`：请求时间戳。
+- Header `X-Message-Id`：上游消息 ID。
+- Header `X-Bot-Signature`：`HMAC_SHA256(secret, timestamp + "." + messageId)` 的 hex 值。
+
+重复 `messageId` 会被判定为幂等重放，接口返回 `duplicate=true`，不会再次触发 Agent。
+
+密钥轮换：
+
+```
+POST /api/bots/bindings/{bindingId}/rotate-secret
+```
+
+请求体：
+
+```json
+{"newSecret":"<new-secret>"}
+```
 
 ## Offline Evaluation
 

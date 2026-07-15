@@ -8,10 +8,16 @@ import com.agenthub.domain.repository.AgentRepository;
 import com.agenthub.domain.repository.SessionRepository;
 import com.agenthub.domain.service.SessionMessageService;
 import com.agenthub.infra.persistence.entity.BotBindingEntity;
+import com.agenthub.infra.persistence.entity.BotWebhookEventEntity;
 import com.agenthub.infra.persistence.repository.BotBindingJpaRepository;
+import com.agenthub.infra.persistence.repository.BotWebhookEventJpaRepository;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,16 +28,19 @@ public class BotApiImpl {
     private final AgentRepository agentRepository;
     private final SessionRepository sessionRepository;
     private final SessionMessageService sessionMessageService;
+    private final BotWebhookEventJpaRepository webhookEventRepository;
 
     public BotApiImpl(
             BotBindingJpaRepository botBindingRepository,
             AgentRepository agentRepository,
             SessionRepository sessionRepository,
-            SessionMessageService sessionMessageService) {
+            SessionMessageService sessionMessageService,
+            BotWebhookEventJpaRepository webhookEventRepository) {
         this.botBindingRepository = botBindingRepository;
         this.agentRepository = agentRepository;
         this.sessionRepository = sessionRepository;
         this.sessionMessageService = sessionMessageService;
+        this.webhookEventRepository = webhookEventRepository;
     }
 
     @PostMapping("/bindings")
@@ -63,6 +72,15 @@ public class BotApiImpl {
                 .ifPresent(botBindingRepository::delete);
     }
 
+    @PostMapping("/bindings/{bindingId}/rotate-secret")
+    public Map<String, Object> rotateSecret(@PathVariable Long bindingId, @RequestBody Map<String, Object> payload) {
+        BotBindingEntity binding = botBindingRepository.findByIdAndTenantId(bindingId, TenantContext.tenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Bot binding not found: " + bindingId));
+        binding.setSecret((String) payload.get("newSecret"));
+        binding.setUpdatedBy(TenantContext.userId());
+        return map(botBindingRepository.save(binding));
+    }
+
     @PostMapping("/webhooks/{channel}")
     public Map<String, Object> webhook(
             @PathVariable String channel,
@@ -74,15 +92,28 @@ public class BotApiImpl {
                 .orElseThrow(() -> new ResourceNotFoundException("Bot binding not found: " + channel + "/" + channelBotId));
         validateSecret(binding, payload, request);
         String conversationId = stringValue(firstNonNull(payload.get("conversationId"), payload.get("chatId")), "default");
+        String messageId = messageId(channel, payload, request);
         String content = extractContent(payload);
         String sessionId = sessionId(binding, conversationId);
+        Optional<BotWebhookEventEntity> existing = webhookEventRepository.findByTenantIdAndChannelAndMessageId(TenantContext.tenantId(), channel, messageId);
+        if (existing.isPresent()) {
+            Map<String, Object> duplicate = new LinkedHashMap<>();
+            duplicate.put("channel", channel);
+            duplicate.put("bindingId", binding.getId());
+            duplicate.put("sessionId", existing.get().getSessionId());
+            duplicate.put("duplicate", true);
+            return duplicate;
+        }
         ensureSession(sessionId, binding.getAgentId());
+        saveWebhookEvent(channel, messageId, binding.getId(), sessionId);
         Message response = sessionMessageService.send(sessionId, sessionMessageService.newUserMessage(sessionId, content));
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("channel", channel);
         result.put("bindingId", binding.getId());
         result.put("sessionId", sessionId);
+        result.put("messageId", messageId);
+        result.put("duplicate", false);
         result.put("reply", response.getContent());
         return result;
     }
@@ -105,9 +136,29 @@ public class BotApiImpl {
             return;
         }
         String supplied = stringValue(firstNonNull(payload.get("secret"), request.getHeader("X-Bot-Secret")), "");
-        if (!binding.getSecret().equals(supplied)) {
+        String signature = request.getHeader("X-Bot-Signature");
+        if (signature != null && !signature.trim().isEmpty()) {
+            String timestamp = stringValue(request.getHeader("X-Bot-Timestamp"), "");
+            String messageId = messageId(binding.getChannel(), payload, request);
+            String expected = hmac(binding.getSecret(), timestamp + "." + messageId);
+            if (!constantTimeEquals(expected, signature)) {
+                throw new IllegalArgumentException("Invalid bot webhook signature");
+            }
+            return;
+        }
+        if (!constantTimeEquals(binding.getSecret(), supplied)) {
             throw new IllegalArgumentException("Invalid bot webhook secret");
         }
+    }
+
+    private void saveWebhookEvent(String channel, String messageId, Long bindingId, String sessionId) {
+        BotWebhookEventEntity event = new BotWebhookEventEntity();
+        event.setTenantId(TenantContext.tenantId());
+        event.setChannel(channel);
+        event.setMessageId(messageId);
+        event.setBindingId(bindingId);
+        event.setSessionId(sessionId);
+        webhookEventRepository.save(event);
     }
 
     @SuppressWarnings("unchecked")
@@ -122,6 +173,36 @@ public class BotApiImpl {
 
     private String sessionId(BotBindingEntity binding, String conversationId) {
         return ("bot-" + binding.getId() + "-" + conversationId).replaceAll("[^a-zA-Z0-9_-]", "_");
+    }
+
+    private String messageId(String channel, Map<String, Object> payload, HttpServletRequest request) {
+        Object value = firstNonNull(firstNonNull(payload.get("messageId"), payload.get("eventId")), request.getHeader("X-Message-Id"));
+        if (value != null) {
+            return String.valueOf(value);
+        }
+        return channel + "-" + Integer.toHexString(String.valueOf(payload).hashCode());
+    }
+
+    private String hmac(String secret, String payload) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to compute webhook signature", ex);
+        }
+    }
+
+    private boolean constantTimeEquals(String expected, String supplied) {
+        if (expected == null || supplied == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8));
     }
 
     private Map<String, Object> map(BotBindingEntity entity) {

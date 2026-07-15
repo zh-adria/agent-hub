@@ -24,13 +24,15 @@ import AgentStudio from './views/agents/AgentStudio/Index.vue';
 import FunctionRegistry from './views/functions/FunctionRegistry/Index.vue';
 import KnowledgeBase from './views/knowledge/Index.vue';
 import SessionManager from './views/sessions/Index.vue';
+import AdminConsole from './views/admin/Index.vue';
 
 export default {
   components: {
     AgentStudio,
     FunctionRegistry,
     KnowledgeBase,
-    SessionManager
+    SessionManager,
+    AdminConsole
   },
   data() {
     return {
@@ -39,7 +41,8 @@ export default {
         { key: 'agents', label: 'Agent 工作台' },
         { key: 'functions', label: '函数注册中心' },
         { key: 'knowledge', label: '知识库' },
-        { key: 'sessions', label: '会话管理' }
+        { key: 'sessions', label: '会话管理' },
+        { key: 'admin', label: 'Admin Console' }
       ]
     };
   },
@@ -49,7 +52,8 @@ export default {
         agents: 'AgentStudio',
         functions: 'FunctionRegistry',
         knowledge: 'KnowledgeBase',
-        sessions: 'SessionManager'
+        sessions: 'SessionManager',
+        admin: 'AdminConsole'
       };
       return map[this.activeView];
     }

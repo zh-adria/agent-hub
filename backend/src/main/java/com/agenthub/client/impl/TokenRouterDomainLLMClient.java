@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Service
 public class TokenRouterDomainLLMClient implements LLMClient {
@@ -47,6 +48,28 @@ public class TokenRouterDomainLLMClient implements LLMClient {
         TokenRouterChatRequest request = requestMapper.fromMessagesJson(toMessagesJson(context), agent.getModel(), metadata(agent, context, "final_answer"));
         TokenRouterChatResponse response = tokenRouterClient.complete(request);
         audit(metadata(agent, context, "final_answer"), response);
+        return response.getContent();
+    }
+
+    @Override
+    public String streamFinalAnswer(Agent agent, List<Message> context, Consumer<String> chunkHandler) {
+        AgentInvocationMetadata metadata = metadata(agent, context, "final_answer_stream");
+        TokenRouterChatRequest request = requestMapper.fromMessagesJson(toMessagesJson(context), agent.getModel(), metadata);
+        StringBuilder content = new StringBuilder();
+        TokenRouterChatResponse response = tokenRouterClient.streamComplete(request, chunk -> {
+            String normalized = normalizeStreamChunk(chunk);
+            if (normalized == null || normalized.isEmpty()) {
+                return;
+            }
+            content.append(normalized);
+            if (chunkHandler != null) {
+                chunkHandler.accept(normalized);
+            }
+        });
+        if (response.getContent() == null || response.getContent().isEmpty()) {
+            response.setContent(content.toString());
+        }
+        audit(metadata, response);
         return response.getContent();
     }
 
@@ -95,5 +118,46 @@ public class TokenRouterDomainLLMClient implements LLMClient {
 
     private void audit(AgentInvocationMetadata metadata, TokenRouterChatResponse response) {
         auditService.record(LLMUsageAuditRecord.from(metadata, response));
+    }
+
+    @SuppressWarnings("unchecked")
+    private String normalizeStreamChunk(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String line = raw.trim();
+        if (line.isEmpty() || "[DONE]".equals(line)) {
+            return "";
+        }
+        if (line.startsWith("data:")) {
+            line = line.substring("data:".length()).trim();
+        }
+        if ("[DONE]".equals(line)) {
+            return "";
+        }
+        try {
+            Map<String, Object> payload = objectMapper.readValue(line, Map.class);
+            Object content = payload.get("content");
+            if (content != null) {
+                return String.valueOf(content);
+            }
+            Object choices = payload.get("choices");
+            if (choices instanceof List && !((List<?>) choices).isEmpty()) {
+                Object first = ((List<?>) choices).get(0);
+                if (first instanceof Map) {
+                    Object delta = ((Map<?, ?>) first).get("delta");
+                    if (delta instanceof Map && ((Map<?, ?>) delta).get("content") != null) {
+                        return String.valueOf(((Map<?, ?>) delta).get("content"));
+                    }
+                    Object message = ((Map<?, ?>) first).get("message");
+                    if (message instanceof Map && ((Map<?, ?>) message).get("content") != null) {
+                        return String.valueOf(((Map<?, ?>) message).get("content"));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            return line;
+        }
+        return "";
     }
 }

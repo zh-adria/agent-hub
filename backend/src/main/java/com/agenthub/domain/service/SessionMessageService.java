@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @Service
 public class SessionMessageService {
@@ -33,6 +34,10 @@ public class SessionMessageService {
     }
 
     public Message send(String sessionId, Message userMessage) {
+        return send(sessionId, userMessage, null);
+    }
+
+    public Message send(String sessionId, Message userMessage, Consumer<String> chunkHandler) {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         List<Message> existing = session.getMessages() != null ? new ArrayList<>(session.getMessages()) : new ArrayList<>();
@@ -44,7 +49,7 @@ public class SessionMessageService {
         try {
             Agent agent = agentRepository.findById(session.getAgentId())
                     .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + session.getAgentId()));
-            generated = reActEngine.executeReActLoop(agent, session, userMessage);
+            generated = reActEngine.executeReActLoop(agent, session, userMessage, chunkHandler);
             traceService.completeStep(step, lastContent(generated));
             traceService.finish(trace.getId(), "SUCCEEDED");
         } catch (Exception ex) {

@@ -48,10 +48,7 @@ public class SessionChatWebSocketHandler extends TextWebSocketHandler {
             String sessionId = String.valueOf(payload.get("sessionId"));
             String content = payload.get("content") != null ? String.valueOf(payload.get("content")) : "";
             socketSession.sendMessage(new TextMessage(event("started", sessionId, null)));
-            Message response = sessionMessageService.send(sessionId, sessionMessageService.newUserMessage(sessionId, content));
-            for (String chunk : chunks(response.getContent())) {
-                socketSession.sendMessage(new TextMessage(event("chunk", sessionId, chunk)));
-            }
+            Message response = sessionMessageService.send(sessionId, sessionMessageService.newUserMessage(sessionId, content), chunk -> sendChunk(socketSession, sessionId, chunk));
             socketSession.sendMessage(new TextMessage(event("completed", sessionId, response.getContent())));
         } catch (Exception ex) {
             socketSession.sendMessage(new TextMessage(event("error", null, ex.getMessage())));
@@ -75,19 +72,12 @@ public class SessionChatWebSocketHandler extends TextWebSocketHandler {
         return new RequestContext(principal, tenantId);
     }
 
-    private String[] chunks(String content) {
-        String safe = content != null ? content : "";
-        if (safe.isEmpty()) {
-            return new String[]{""};
+    private void sendChunk(WebSocketSession socketSession, String sessionId, String chunk) {
+        try {
+            socketSession.sendMessage(new TextMessage(event("chunk", sessionId, chunk)));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to send WebSocket chunk", ex);
         }
-        int size = 64;
-        int count = (safe.length() + size - 1) / size;
-        String[] chunks = new String[count];
-        for (int i = 0; i < count; i++) {
-            int start = i * size;
-            chunks[i] = safe.substring(start, Math.min(start + size, safe.length()));
-        }
-        return chunks;
     }
 
     private String event(String type, String sessionId, String data) throws Exception {

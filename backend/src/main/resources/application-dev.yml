@@ -31,7 +31,7 @@ token-router:
 
 agenthub:
   identity:
-    provider: iam
+    provider: mock
     iam:
       base-url: http://127.0.0.1:8080/iam
       client-id: demo-client

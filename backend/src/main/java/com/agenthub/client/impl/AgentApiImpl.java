@@ -177,8 +177,28 @@ public class AgentApiImpl implements AgentApi {
     private List<String> parseJsonArray(String value) {
         if (value == null || value.trim().isEmpty()) return Collections.emptyList();
         try {
-            return objectMapper.readValue(value, new TypeReference<List<String>>() {});
+            Object parsed = objectMapper.readValue(value, Object.class);
+            if (parsed instanceof List) {
+                List<?> raw = (List<?>) parsed;
+                List<String> result = new ArrayList<>();
+                for (Object item : raw) {
+                    result.add(String.valueOf(item));
+                }
+                return result;
+            }
+            if (parsed instanceof String) {
+                return parseJsonArray((String) parsed);
+            }
+            return Collections.emptyList();
         } catch (Exception ex) {
+            String trimmed = value.trim();
+            if (trimmed.startsWith("\"") && trimmed.endsWith("\"")) {
+                try {
+                    return parseJsonArray(objectMapper.readValue(trimmed, String.class));
+                } catch (Exception ignored) {
+                    return Collections.emptyList();
+                }
+            }
             return Collections.emptyList();
         }
     }

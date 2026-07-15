@@ -43,8 +43,10 @@ public class VectorSearchService {
         if (milvusVectorStoreAdapter.enabled()) {
             try {
                 milvusVectorStoreAdapter.upsert(tenantId, chunk, vector, embeddingService.provider(), embeddingService.model());
-            } catch (Exception ignored) {
-                // Keep local vector table as the durable fallback.
+            } catch (Exception ex) {
+                if (!milvusVectorStoreAdapter.fallbackOnFailure()) {
+                    throw new IllegalStateException("Milvus upsert failed", ex);
+                }
             }
         }
         VectorEmbeddingEntity entity = vectorRepository.findByChunkIdAndTenantId(chunk.getId(), tenantId)
@@ -68,8 +70,10 @@ public class VectorSearchService {
                 if (!hits.isEmpty()) {
                     return hydrateMilvusHits(hits, tenantId);
                 }
-            } catch (Exception ignored) {
-                // Fall through to JPA vector table.
+            } catch (Exception ex) {
+                if (!milvusVectorStoreAdapter.fallbackOnFailure()) {
+                    throw new IllegalStateException("Milvus search failed", ex);
+                }
             }
         }
         return vectorRepository.findByKnowledgeBaseIdAndTenantId(knowledgeBaseId, tenantId).stream()

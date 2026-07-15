@@ -436,6 +436,33 @@ CREATE TABLE IF NOT EXISTS evaluation_case_result (
     FOREIGN KEY (run_id) REFERENCES evaluation_run(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Offline evaluation case result';
 
+CREATE TABLE IF NOT EXISTS llm_usage_audit (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    business_tag VARCHAR(128),
+    user_id VARCHAR(128),
+    policy_id VARCHAR(128),
+    agent_id VARCHAR(64),
+    agent_session_id VARCHAR(64),
+    agent_step_id VARCHAR(64),
+    agent_step_type VARCHAR(64),
+    trace_id VARCHAR(64),
+    tool_names TEXT,
+    knowledge_base_id VARCHAR(64),
+    provider VARCHAR(64),
+    model VARCHAR(128),
+    prompt_tokens INT,
+    completion_tokens INT,
+    total_tokens INT,
+    cost DECIMAL(12, 6),
+    route_decision VARCHAR(64),
+    route_reason TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_llm_audit_tenant_created (tenant_id, created_at),
+    INDEX idx_llm_audit_agent (agent_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='LLM usage audit';
+
 CREATE TABLE IF NOT EXISTS bot_binding (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
@@ -452,3 +479,17 @@ CREATE TABLE IF NOT EXISTS bot_binding (
     INDEX idx_bot_binding_tenant (tenant_id),
     FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Enterprise bot channel binding';
+
+CREATE TABLE IF NOT EXISTS bot_webhook_event (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    channel VARCHAR(32) NOT NULL,
+    message_id VARCHAR(128) NOT NULL,
+    binding_id BIGINT NOT NULL,
+    session_id VARCHAR(128) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_bot_event_message (tenant_id, channel, message_id),
+    INDEX idx_bot_event_binding (binding_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
+    FOREIGN KEY (binding_id) REFERENCES bot_binding(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Bot webhook idempotency event';

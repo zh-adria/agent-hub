@@ -1,6 +1,7 @@
 package com.agenthub.domain.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
@@ -16,7 +17,6 @@ public class HashingEmbeddingService implements EmbeddingService {
 
     private static final int DIMENSION = 128;
     private final AiIntegrationProperties properties;
-    private final RestTemplate restTemplate = new RestTemplate();
 
     public HashingEmbeddingService(AiIntegrationProperties properties) {
         this.properties = properties;
@@ -30,8 +30,10 @@ public class HashingEmbeddingService implements EmbeddingService {
                 if (external.length > 0) {
                     return external;
                 }
-            } catch (Exception ignored) {
-                // Local hashing keeps RAG usable when the external gateway is unavailable.
+            } catch (Exception ex) {
+                if (!properties.getEmbedding().isFallbackOnFailure()) {
+                    throw new IllegalStateException("External embedding failed", ex);
+                }
             }
         }
         return localEmbed(text);
@@ -77,7 +79,7 @@ public class HashingEmbeddingService implements EmbeddingService {
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("input", text != null ? text : "");
         request.put("model", properties.getEmbedding().getModel());
-        Map<String, Object> response = restTemplate.postForObject(properties.getEmbedding().getUrl(), request, Map.class);
+        Map<String, Object> response = restTemplate().postForObject(properties.getEmbedding().getUrl(), request, Map.class);
         Object embedding = response != null ? response.get("embedding") : null;
         if (embedding == null && response != null && response.get("data") instanceof List) {
             List<Object> data = (List<Object>) response.get("data");
@@ -94,6 +96,16 @@ public class HashingEmbeddingService implements EmbeddingService {
             result[i] = Float.parseFloat(String.valueOf(values.get(i)));
         }
         return result;
+    }
+
+    private RestTemplate restTemplate() {
+        int timeout = properties.getEmbedding().getTimeoutMs() != null && properties.getEmbedding().getTimeoutMs() > 0
+                ? properties.getEmbedding().getTimeoutMs()
+                : 3000;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(timeout);
+        factory.setReadTimeout(timeout);
+        return new RestTemplate(factory);
     }
 
     private int bucket(String token) {

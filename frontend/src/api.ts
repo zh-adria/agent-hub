@@ -1,5 +1,5 @@
-const DEFAULT_TOKEN = import.meta.env.VITE_DEFAULT_ACCESS_TOKEN || '';
-const DEFAULT_TENANT_ID = import.meta.env.VITE_DEFAULT_TENANT_ID || '';
+const DEFAULT_TOKEN = import.meta.env.VITE_DEFAULT_ACCESS_TOKEN || 'mock-token';
+const DEFAULT_TENANT_ID = import.meta.env.VITE_DEFAULT_TENANT_ID || 'tenant-001';
 
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers || {});

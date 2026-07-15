@@ -52,11 +52,17 @@ agenthub:
       url:
       provider: llm-gateway
       model: text-embedding
+      timeout-ms: 3000
+      fallback-on-failure: true
     rerank:
       external-enabled: false
       url:
       model: rerank-default
+      timeout-ms: 3000
+      fallback-on-failure: true
     milvus:
       enabled: false
       url:
       collection-prefix: agenthub
+      timeout-ms: 3000
+      fallback-on-failure: true

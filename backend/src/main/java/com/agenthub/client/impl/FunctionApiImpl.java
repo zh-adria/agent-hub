@@ -3,13 +3,10 @@ package com.agenthub.client.impl;
 import com.agenthub.client.api.FunctionApi;
 import com.agenthub.domain.exception.ResourceNotFoundException;
 import com.agenthub.domain.model.FunctionDefinition;
+import com.agenthub.domain.port.FunctionRegistry;
 import com.agenthub.domain.service.FunctionRegistryService;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,10 +15,13 @@ import java.util.stream.Collectors;
 public class FunctionApiImpl implements FunctionApi {
 
     private final FunctionRegistryService functionRegistryService;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final FunctionRegistry functionRegistry;
+    private final ObjectMapper objectMapper;
 
-    public FunctionApiImpl(FunctionRegistryService functionRegistryService) {
+    public FunctionApiImpl(FunctionRegistryService functionRegistryService, FunctionRegistry functionRegistry, ObjectMapper objectMapper) {
         this.functionRegistryService = functionRegistryService;
+        this.functionRegistry = functionRegistry;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -67,25 +67,12 @@ public class FunctionApiImpl implements FunctionApi {
     public Object invokeFunction(@PathVariable Long functionId, @RequestBody Map<String, Object> args) {
         FunctionDefinition function = functionRegistryService.getFunction(String.valueOf(functionId))
                 .orElseThrow(() -> new IllegalArgumentException("Function not found: " + functionId));
-        if (function.getEndpoint() == null || function.getEndpoint().trim().isEmpty()) {
-            throw new IllegalArgumentException("Function endpoint is required: " + functionId);
-        }
         Map<String, Object> input = extractInput(args);
-        String method = function.getMethod() != null ? function.getMethod().toUpperCase(Locale.ROOT) : "GET";
-        ResponseEntity<Object> response;
-        if ("GET".equals(method)) {
-            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(function.getEndpoint());
-            for (Map.Entry<String, Object> entry : input.entrySet()) {
-                builder.queryParam(entry.getKey(), entry.getValue());
-            }
-            response = restTemplate.exchange(builder.toUriString(), HttpMethod.GET, HttpEntity.EMPTY, Object.class);
-        } else {
-            response = restTemplate.exchange(function.getEndpoint(), HttpMethod.valueOf(method), new HttpEntity<>(input), Object.class);
-        }
+        Object response = functionRegistry.invoke(function.getId(), input);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("functionId", function.getId());
-        result.put("status", response.getStatusCodeValue());
-        result.put("result", response.getBody());
+        result.put("status", 200);
+        result.put("result", response);
         return result;
     }
 
@@ -104,7 +91,7 @@ public class FunctionApiImpl implements FunctionApi {
         function.setDescription((String) config.get("description"));
         function.setEndpoint((String) config.get("endpoint"));
         function.setMethod(config.get("method") != null ? (String) config.get("method") : "GET");
-        function.setParameters(config.get("parameters") != null ? config.get("parameters").toString() : null);
+        function.setParameters(toJson(config.get("parameters")));
         if (config.get("timeoutMs") instanceof Number) {
             function.setTimeoutMs(((Number) config.get("timeoutMs")).intValue());
         }
@@ -134,5 +121,22 @@ public class FunctionApiImpl implements FunctionApi {
             return (Map<String, Object>) input;
         }
         return args != null ? args : Collections.emptyMap();
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String) {
+            String text = ((String) value).trim();
+            if (text.startsWith("{") || text.startsWith("[")) {
+                return text;
+            }
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid function parameters schema", ex);
+        }
     }
 }

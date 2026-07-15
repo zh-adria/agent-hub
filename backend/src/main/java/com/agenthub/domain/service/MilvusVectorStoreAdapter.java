@@ -1,6 +1,7 @@
 package com.agenthub.domain.service;
 
 import com.agenthub.infra.persistence.entity.DocumentChunkEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -12,7 +13,6 @@ import java.util.Map;
 @Component
 public class MilvusVectorStoreAdapter {
     private final AiIntegrationProperties properties;
-    private final RestTemplate restTemplate = new RestTemplate();
 
     public MilvusVectorStoreAdapter(AiIntegrationProperties properties) {
         this.properties = properties;
@@ -37,7 +37,7 @@ public class MilvusVectorStoreAdapter {
         request.put("provider", provider);
         request.put("model", model);
         request.put("vector", toList(vector));
-        restTemplate.postForObject(properties.getMilvus().getUrl() + "/vectors/upsert", request, Map.class);
+        restTemplate().postForObject(properties.getMilvus().getUrl() + "/vectors/upsert", request, Map.class);
     }
 
     @SuppressWarnings("unchecked")
@@ -51,12 +51,28 @@ public class MilvusVectorStoreAdapter {
         request.put("knowledgeBaseId", knowledgeBaseId);
         request.put("topK", topK);
         request.put("vector", toList(queryVector));
-        Map<String, Object> response = restTemplate.postForObject(properties.getMilvus().getUrl() + "/vectors/search", request, Map.class);
+        Map<String, Object> response = restTemplate().postForObject(properties.getMilvus().getUrl() + "/vectors/search", request, Map.class);
         Object hits = response != null ? response.get("hits") : null;
         if (hits instanceof List) {
             return (List<Map<String, Object>>) hits;
         }
         return new ArrayList<>();
+    }
+
+    public boolean fallbackOnFailure() {
+        return properties.getMilvus().isFallbackOnFailure();
+    }
+
+    public boolean available() {
+        if (!enabled()) {
+            return false;
+        }
+        try {
+            restTemplate().getForObject(properties.getMilvus().getUrl() + "/health", Map.class);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private String collectionName(Long tenantId, Long knowledgeBaseId) {
@@ -69,5 +85,15 @@ public class MilvusVectorStoreAdapter {
             values.add(item);
         }
         return values;
+    }
+
+    private RestTemplate restTemplate() {
+        int timeout = properties.getMilvus().getTimeoutMs() != null && properties.getMilvus().getTimeoutMs() > 0
+                ? properties.getMilvus().getTimeoutMs()
+                : 3000;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(timeout);
+        factory.setReadTimeout(timeout);
+        return new RestTemplate(factory);
     }
 }

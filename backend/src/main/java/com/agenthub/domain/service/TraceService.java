@@ -63,6 +63,10 @@ public class TraceService {
         return stepRecordRepository.save(step);
     }
 
+    public StepRecordEntity saveStep(StepRecordEntity step) {
+        return stepRecordRepository.save(step);
+    }
+
     public TraceEntity finish(String traceId, String status) {
         TraceEntity trace = traceRepository.findByIdAndTenantId(traceId, TenantContext.tenantId())
                 .orElseThrow(() -> new IllegalArgumentException("Trace not found: " + traceId));
