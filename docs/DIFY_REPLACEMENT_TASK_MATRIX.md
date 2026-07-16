@@ -8,9 +8,9 @@
 
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
-| Dify 替代要能 8-12 周交付 | Agent、Function、RAG、Workflow、Trace 已有 MVP | 增加交付就绪度视图 | 管理控制台能看到 Agent、Tool、RAG、Workflow、Trace、Step、Channel 就绪状态 |
-| 企业更关心可审计 | Trace、StepRecord、LLM audit | 每次工具调用返回 traceId / stepRecordId | Function 测试后可在 Trace 页面看到步骤 |
-| 私有化不能依赖外部 IAM | mock identity + dev profile | dev 默认本地 mock 登录 | 前端可直接用 tenant-001/admin 登录 |
+| Dify 替代要能 8-12 周交付 | Agent、Function、RAG、Workflow、Trace 已有 MVP | 增加交付就绪度视图 | 已落地：管理控制台能看到 Agent、Tool、RAG、Workflow、Trace、Step、Channel 就绪状态 |
+| 企业更关心可审计 | Trace、StepRecord、LLM audit | 每次工具调用返回 traceId / stepRecordId | 已落地：Function 测试后可在 Trace 页面看到步骤 |
+| 私有化不能依赖外部 IAM | mock identity + dev profile | dev 默认本地 mock 登录 | 已落地：前端可直接用 tenant-001/admin 登录 |
 
 ## P1：治理产品化
 
