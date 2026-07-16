@@ -62,7 +62,7 @@
 </template>
 
 <script>
-import { apiFetch, hasPermission } from '../../api';
+import { apiFetch, formatDate, formatStatus, formatTime, hasPermission, shortId } from '../../api';
 
 export default {
   props: {
@@ -163,28 +163,10 @@ export default {
         });
       }
     },
-    formatDate(date) {
-      return new Date(date).toLocaleString();
-    },
-    formatTime(date) {
-      return new Date(date).toLocaleTimeString();
-    },
-    shortId(value) {
-      const text = String(value || '');
-      return text.length > 10 ? `${text.slice(0, 10)}...` : text;
-    },
-    formatStatus(status) {
-      const map = {
-        ACTIVE: '进行中',
-        active: '进行中',
-        ENDED: '已结束',
-        ended: '已结束',
-        ERROR: '异常',
-        error: '异常',
-        closed: '已关闭'
-      };
-      return map[status] || status || '未知';
-    }
+    formatDate,
+    formatTime,
+    shortId,
+    formatStatus
   }
 };
 </script>

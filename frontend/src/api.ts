@@ -85,6 +85,35 @@ export function formatScore(score: number | string | null | undefined): string {
   return Number(score || 0).toFixed(3);
 }
 
+export function formatDate(value: string | number | Date | null | undefined): string {
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
+}
+
+export function formatTime(value: string | number | Date | null | undefined): string {
+  if (!value) return '-';
+  return new Date(value).toLocaleTimeString();
+}
+
+export function shortId(value: unknown, length = 10): string {
+  const text = String(value ?? '');
+  return text.length > length ? `${text.slice(0, length)}...` : text;
+}
+
+const SESSION_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: '进行中',
+  active: '进行中',
+  ENDED: '已结束',
+  ended: '已结束',
+  ERROR: '异常',
+  error: '异常',
+  closed: '已关闭'
+};
+
+export function formatStatus(status: string | null | undefined): string {
+  return SESSION_STATUS_LABELS[status || ''] || status || '未知';
+}
+
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers || {});
   const token = getAccessToken();
