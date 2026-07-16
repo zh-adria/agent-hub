@@ -199,7 +199,9 @@ class AuthRbacTenantIntegrationTest {
     void healthTraceAndObservabilityEndpointsRespond() throws Exception {
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.integrations.milvus").value(false));
+                .andExpect(jsonPath("$.integrations.milvus").value(false))
+                .andExpect(jsonPath("$.integrations.milvusCollectionStrategy").value("agenthub_t{tenantId}_kb{knowledgeBaseId}"))
+                .andExpect(jsonPath("$.integrations.milvusPartitionStrategy").value("collection-per-tenant-knowledge-base"));
 
         mockMvc.perform(get("/api/traces")
                         .header("Authorization", "Bearer mock-token")
@@ -211,6 +213,41 @@ class AuthRbacTenantIntegrationTest {
                         .header("X-Tenant-Id", "tenant-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tenantId").value("tenant-001"));
+    }
+
+    @Test
+    void ragDemoPackageCreatesIndustryKnowledgeBase() throws Exception {
+        mockMvc.perform(post("/api/knowledge-bases/demo-packages/finance")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.industry").value("finance"))
+                .andExpect(jsonPath("$.knowledgeBase.id").exists())
+                .andExpect(jsonPath("$.document.accessTags", hasItem("finance")))
+                .andExpect(jsonPath("$.chunks[0].accessTags", hasItem("finance")));
+    }
+
+    @Test
+    void workflowFallbackProducesOutputWhenNodeFails() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/workflows")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"fallback-flow\",\"definition\":{\"nodes\":[{\"id\":\"rescue\",\"agentId\":\"999999\",\"fallback\":\"manual fallback\"}]}}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Integer workflowId = com.jayway.jsonpath.JsonPath.read(createResult.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(post("/api/workflows/" + workflowId + "/execute")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"input\":\"need fallback\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.outputs.rescue").value("manual fallback"))
+                .andExpect(jsonPath("$.steps[0].stepKey").value("rescue#fallback"));
     }
 
     @Test

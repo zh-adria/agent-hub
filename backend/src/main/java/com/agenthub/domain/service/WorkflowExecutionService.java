@@ -125,6 +125,10 @@ public class WorkflowExecutionService {
                 traceService.failStep(step, ex.getMessage());
             }
         }
+        if (!node.fallback.isEmpty()) {
+            StepRecordEntity step = traceService.startStep(trace.getId(), null, workflow.getId(), node.id + "#fallback", node.agentId, nodeInput);
+            return new NodeResult(node.fallback, traceService.completeStep(step, node.fallback));
+        }
         throw new IllegalStateException(last != null ? last.getMessage() : "Workflow node failed");
     }
 
@@ -154,7 +158,11 @@ public class WorkflowExecutionService {
     @SuppressWarnings("unchecked")
     private List<Node> parseNodes(String definition) {
         try {
-            Map<String, Object> root = objectMapper.readValue(definition, new TypeReference<Map<String, Object>>() {});
+            Object parsed = objectMapper.readValue(definition, Object.class);
+            if (parsed instanceof String) {
+                parsed = objectMapper.readValue((String) parsed, Object.class);
+            }
+            Map<String, Object> root = (Map<String, Object>) parsed;
             Object rawNodes = root.get("nodes");
             if (!(rawNodes instanceof List)) {
                 throw new IllegalArgumentException("Workflow definition requires nodes array");
@@ -169,6 +177,7 @@ public class WorkflowExecutionService {
                 node.type = stringValue(item.get("type"), "agent");
                 node.retry = intValue(item.get("retry"), 0);
                 node.timeoutMs = intValue(item.get("timeoutMs"), 30000);
+                node.fallback = stringValue(item.get("fallback"), "");
                 Object dependsOn = item.get("dependsOn");
                 if (dependsOn instanceof List) {
                     for (Object dependency : (List<Object>) dependsOn) {
@@ -321,6 +330,7 @@ public class WorkflowExecutionService {
         private String agentId;
         private String input;
         private String type;
+        private String fallback;
         private int retry;
         private int timeoutMs = 30000;
         private final List<String> dependsOn = new ArrayList<>();

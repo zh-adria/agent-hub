@@ -35,6 +35,9 @@ public class HealthController {
         integrations.put("milvus", aiIntegrationProperties.getMilvus().isEnabled());
         integrations.put("milvusAvailable", milvusVectorStoreAdapter.available());
         integrations.put("milvusFallbackOnFailure", aiIntegrationProperties.getMilvus().isFallbackOnFailure());
+        integrations.put("milvusCollectionPrefix", aiIntegrationProperties.getMilvus().getCollectionPrefix());
+        integrations.put("milvusCollectionStrategy", aiIntegrationProperties.getMilvus().getCollectionPrefix() + "_t{tenantId}_kb{knowledgeBaseId}");
+        integrations.put("milvusPartitionStrategy", "collection-per-tenant-knowledge-base");
         status.put("integrations", integrations);
         return status;
     }
@@ -54,6 +57,7 @@ public class HealthController {
         status.put("database", databaseReady);
         status.put("milvusConfigured", aiIntegrationProperties.getMilvus().isEnabled());
         status.put("milvusAvailable", milvusVectorStoreAdapter.available());
+        status.put("milvusCollectionStrategy", aiIntegrationProperties.getMilvus().getCollectionPrefix() + "_t{tenantId}_kb{knowledgeBaseId}");
         return status;
     }
 

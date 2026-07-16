@@ -25,21 +25,21 @@
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
 | RAG 从能召回到可控 | HybridSearch + Rerank | 文档权限过滤契约 | 已落地：文档/chunk metadata 支持 accessTags，检索按请求 accessTags 过滤 |
-| 私有化需要向量库策略 | Milvus adapter | collection / partition 策略文档和配置 | 健康检查能显示 Milvus 策略与状态 |
-| 垂直模板更容易成交 | KnowledgeBase | 增加法律/金融/制造样例数据包 | Demo 能一键创建行业知识库 |
+| 私有化需要向量库策略 | Milvus adapter | collection / partition 策略文档和配置 | 已落地：健康检查显示 Milvus collection 策略、partition 策略和可用性 |
+| 垂直模板更容易成交 | KnowledgeBase | 增加法律/金融/制造样例数据包 | 已落地：Demo package API 可一键创建法律/金融/制造知识库 |
 
 ## P3：Workflow 企业化
 
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
-| 生产流程要可恢复 | DAG 顺序执行 MVP | checkpoint / resume | 节点失败后可恢复继续执行 |
-| 人机协作是标配 | WebSocket + Workflow | human-in-the-loop 节点 | 工作流能暂停等待审批 |
-| 高并发要有韧性 | Function timeout 字段 | 节点级 timeout/retry/fallback | 失败类型可归类 |
+| 生产流程要可恢复 | DAG 顺序执行 MVP | checkpoint / resume | 已落地：Workflow 响应返回 completed/pending/waiting checkpoint |
+| 人机协作是标配 | WebSocket + Workflow | human-in-the-loop 节点 | 已落地：human/approval 节点进入 WAITING_APPROVAL 并返回 checkpoint |
+| 高并发要有韧性 | Function timeout 字段 | 节点级 timeout/retry/fallback | 已落地：节点支持 timeout/retry/fallback，失败与兜底写 StepRecord |
 
 ## P4：技术栈升级路线
 
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
-| Java 21 虚拟线程适合 Agent I/O | 当前 Java 8 | 制定 Java 21 / Spring Boot 3 迁移分支 | 不影响当前可交付版本 |
-| Spring AI 1.1 强化 MCP | 当前自研 LLM 网关 client + MCP adapter | 评估 Spring AI MCP 接入 | FunctionDefinition 能兼容 MCP Streamable HTTP |
-| Resilience4j 是工具层标配 | 当前 RestTemplate timeout | 增加 retry/circuit breaker | 工具异常能熔断并审计 |
+| Java 21 虚拟线程适合 Agent I/O | 当前 Java 8 | 制定 Java 21 / Spring Boot 3 迁移分支 | 已落地：技术栈升级路线文档明确迁移分支、顺序和不变约束 |
+| Spring AI 1.1 强化 MCP | 当前自研 LLM 网关 client + MCP adapter | 评估 Spring AI MCP 接入 | 已落地：路线文档明确 Spring AI MCP 作为适配层，不改变 Function API |
+| Resilience4j 是工具层标配 | 当前 RestTemplate timeout | 增加 retry/circuit breaker | 已落地：路线文档明确 Function retry/circuit breaker 与审计接入顺序 |

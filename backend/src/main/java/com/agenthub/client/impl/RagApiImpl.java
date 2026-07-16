@@ -218,6 +218,60 @@ public class RagApiImpl {
         return hybridSearchService.search(tenantId(), knowledgeBaseId, query, topK, stringList(payload.get("accessTags")));
     }
 
+    @PostMapping("/demo-packages/{industry}")
+    public Map<String, Object> createDemoPackage(@PathVariable String industry) {
+        DemoPackage demo = demoPackage(industry);
+        KnowledgeBaseEntity knowledgeBase = new KnowledgeBaseEntity();
+        knowledgeBase.setTenantId(tenantId());
+        knowledgeBase.setName(demo.name);
+        knowledgeBase.setDescription(demo.description);
+        knowledgeBase.setEmbeddingProvider("llm-gateway");
+        knowledgeBase.setEmbeddingModel("text-embedding");
+        knowledgeBase.setChunkSize(800);
+        knowledgeBase.setChunkOverlap(120);
+        knowledgeBase.setStatus(1);
+        knowledgeBase.setCreatedBy(TenantContext.userId());
+        knowledgeBase.setUpdatedBy(TenantContext.userId());
+        KnowledgeBaseEntity savedKnowledgeBase = knowledgeBaseRepository.save(knowledgeBase);
+
+        Map<String, Object> metadataPayload = new LinkedHashMap<>();
+        metadataPayload.put("accessTags", demo.accessTags);
+        metadataPayload.put("metadata", demo.metadata);
+
+        RagDocumentEntity document = new RagDocumentEntity();
+        document.setTenantId(tenantId());
+        document.setKnowledgeBaseId(savedKnowledgeBase.getId());
+        document.setTitle(demo.documentTitle);
+        document.setSourceUri("demo://" + demo.industry);
+        document.setMimeType("text/plain");
+        document.setMetadata(metadataJson(metadataPayload));
+        document.setStatus(1);
+        document.setCreatedBy(TenantContext.userId());
+        document.setUpdatedBy(TenantContext.userId());
+        RagDocumentEntity savedDocument = documentRepository.save(document);
+
+        List<Map<String, Object>> chunks = new ArrayList<>();
+        for (int index = 0; index < demo.chunks.size(); index++) {
+            DocumentChunkEntity chunk = new DocumentChunkEntity();
+            chunk.setTenantId(tenantId());
+            chunk.setKnowledgeBaseId(savedKnowledgeBase.getId());
+            chunk.setDocumentId(savedDocument.getId());
+            chunk.setChunkIndex(index);
+            chunk.setContent(demo.chunks.get(index));
+            chunk.setMetadata(savedDocument.getMetadata());
+            DocumentChunkEntity savedChunk = chunkRepository.save(chunk);
+            savedChunk.setEmbeddingId(String.valueOf(vectorSearchService.indexChunk(tenantId(), savedChunk).getId()));
+            chunks.add(mapChunk(chunkRepository.save(savedChunk)));
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("industry", demo.industry);
+        response.put("knowledgeBase", mapKnowledgeBase(savedKnowledgeBase));
+        response.put("document", mapDocument(savedDocument));
+        response.put("chunks", chunks);
+        return response;
+    }
+
     private void requireKnowledgeBase(Long knowledgeBaseId) {
         knowledgeBaseRepository.findByIdAndTenantId(knowledgeBaseId, tenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Knowledge base not found: " + knowledgeBaseId));
@@ -361,6 +415,83 @@ public class RagApiImpl {
             return objectMapper.writeValueAsString(value != null ? value : new LinkedHashMap<>());
         } catch (Exception ex) {
             return "{}";
+        }
+    }
+
+    private DemoPackage demoPackage(String rawIndustry) {
+        String industry = stringValue(rawIndustry, "").toLowerCase();
+        if ("legal".equals(industry) || "law".equals(industry) || "法律".equals(industry)) {
+            return new DemoPackage(
+                    "legal",
+                    "法律合同审查样例知识库",
+                    "面向合同条款审查、风险提示和证据留存的 RAG 样例包",
+                    "合同审查验收样例",
+                    list("legal"),
+                    map("domain", "legal", "source", "demo-package"),
+                    list(
+                            "合同审查需关注主体资质、履约期限、违约责任、争议解决和保密义务。",
+                            "高风险条款包括无限责任、单方解除、自动续约、排他授权和管辖不明确。"));
+        }
+        if ("finance".equals(industry) || "金融".equals(industry)) {
+            return new DemoPackage(
+                    "finance",
+                    "金融风控问答样例知识库",
+                    "面向授信尽调、风险分层和合规问答的 RAG 样例包",
+                    "风控审核验收样例",
+                    list("finance"),
+                    map("domain", "finance", "source", "demo-package"),
+                    list(
+                            "授信审核需综合客户资质、经营流水、负债结构、担保情况和异常交易。",
+                            "风险分层应保留评分依据、命中规则、人工复核意见和最终审批结论。"));
+        }
+        if ("manufacturing".equals(industry) || "manufacture".equals(industry) || "制造".equals(industry)) {
+            return new DemoPackage(
+                    "manufacturing",
+                    "制造设备运维样例知识库",
+                    "面向设备巡检、故障定位和维修 SOP 的 RAG 样例包",
+                    "设备运维验收样例",
+                    list("manufacturing"),
+                    map("domain", "manufacturing", "source", "demo-package"),
+                    list(
+                            "设备巡检需记录温度、振动、电流、润滑状态、告警码和最近维护时间。",
+                            "故障定位应按安全停机、现场确认、备件核验、维修复测和复盘归档执行。"));
+        }
+        throw new IllegalArgumentException("Unsupported demo package: " + rawIndustry);
+    }
+
+    private List<String> list(String... values) {
+        List<String> result = new ArrayList<>();
+        for (String value : values) {
+            result.add(value);
+        }
+        return result;
+    }
+
+    private Map<String, Object> map(String key1, Object value1, String key2, Object value2) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put(key1, value1);
+        result.put(key2, value2);
+        return result;
+    }
+
+    private static class DemoPackage {
+        private final String industry;
+        private final String name;
+        private final String description;
+        private final String documentTitle;
+        private final List<String> accessTags;
+        private final Map<String, Object> metadata;
+        private final List<String> chunks;
+
+        private DemoPackage(String industry, String name, String description, String documentTitle,
+                            List<String> accessTags, Map<String, Object> metadata, List<String> chunks) {
+            this.industry = industry;
+            this.name = name;
+            this.description = description;
+            this.documentTitle = documentTitle;
+            this.accessTags = accessTags;
+            this.metadata = metadata;
+            this.chunks = chunks;
         }
     }
 }
