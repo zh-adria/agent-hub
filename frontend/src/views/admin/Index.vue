@@ -5,7 +5,12 @@
         <h2>管理控制台</h2>
         <p>查看运行状态、链路追踪、工作流、评估、企业通道和用量审计。</p>
       </div>
-      <button type="button" @click="refreshAll">刷新</button>
+      <div class="header-actions">
+        <button type="button" class="secondary" @click="seedDemoData" :disabled="seedBusy">
+          {{ seedBusy ? '生成中...' : '生成演示数据' }}
+        </button>
+        <button type="button" @click="refreshAll">刷新</button>
+      </div>
     </div>
 
     <div class="status-grid">
@@ -31,6 +36,11 @@
         <span>用量审计</span>
         <strong>{{ summary.llmAuditRecordCount ?? '-' }}</strong>
         <small>{{ summary.llmTotalTokens || 0 }} tokens</small>
+      </section>
+      <section class="metric">
+        <span>交付就绪</span>
+        <strong>{{ readiness.readinessScore ?? '-' }}%</strong>
+        <small>{{ readiness.readyCount || 0 }}/{{ readiness.totalCount || 0 }} checks</small>
       </section>
     </div>
 
@@ -85,6 +95,49 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="activeTab === 'readiness'" class="section">
+      <div class="section-grid">
+        <div>
+          <h3>Dify 替代交付就绪度</h3>
+          <table v-if="readiness.checks && readiness.checks.length > 0">
+            <thead>
+              <tr>
+                <th>产品域</th>
+                <th>状态</th>
+                <th>数量</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in readiness.checks" :key="item.domain">
+                <td>{{ item.domain }}</td>
+                <td>
+                  <span :class="['pill', item.ready ? 'ready' : 'pending']">
+                    {{ item.ready ? 'ready' : 'pending' }}
+                  </span>
+                </td>
+                <td>{{ item.count }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-else class="empty">暂无交付就绪数据</div>
+        </div>
+        <div>
+          <h3>下一步</h3>
+          <div
+            v-for="action in readiness.nextActions || []"
+            :key="action"
+            class="readiness-action"
+          >
+            {{ action }}
+          </div>
+          <div v-if="!readiness.nextActions || readiness.nextActions.length === 0" class="empty">
+            暂无待办
+          </div>
+          <div v-if="seedMessage" class="notice">{{ seedMessage }}</div>
         </div>
       </div>
     </section>
@@ -257,6 +310,7 @@ export default {
       activeTab: 'overview',
       tabs: [
         { key: 'overview', label: '概览', permissions: [] },
+        { key: 'readiness', label: '交付就绪', permissions: ['audit:read'] },
         { key: 'traces', label: '链路追踪', permissions: ['trace:read'] },
         { key: 'workflows', label: '工作流', permissions: ['workflow:read'] },
         { key: 'evaluations', label: '评估', permissions: ['evaluation:read'] },
@@ -266,6 +320,9 @@ export default {
       health: {},
       ready: {},
       summary: {},
+      readiness: {},
+      seedBusy: false,
+      seedMessage: '',
       traces: [],
       selectedTrace: null,
       traceSteps: [],
@@ -297,6 +354,7 @@ export default {
       await Promise.all([
         this.loadHealth(),
         this.can('audit:read') ? this.loadSummary() : Promise.resolve(),
+        this.can('audit:read') ? this.loadReadiness() : Promise.resolve(),
         this.can('trace:read') ? this.loadTraces() : Promise.resolve(),
         this.can('workflow:read') ? this.loadWorkflows() : Promise.resolve(),
         this.can('evaluation:read') ? this.loadEvaluations() : Promise.resolve(),
@@ -315,6 +373,78 @@ export default {
     async loadSummary() {
       const response = await apiFetch('/api/observability/summary');
       this.summary = response.ok ? await response.json() : {};
+    },
+    async loadReadiness() {
+      const response = await apiFetch('/api/observability/delivery-readiness');
+      this.readiness = response.ok ? await response.json() : {};
+    },
+    async seedDemoData() {
+      if (this.seedBusy) return;
+      this.seedBusy = true;
+      this.seedMessage = '';
+      try {
+        const suffix = Date.now();
+        const agent = await this.postJson('/api/agents', {
+          name: `dify-demo-agent-${suffix}`,
+          description: 'Dify 替代迁移演示 Agent',
+          prompt: '你是企业知识库和工具编排助手。',
+          model: 'gpt-4o-mini',
+          temperature: 0.2
+        });
+        const func = await this.postJson('/api/functions', {
+          name: `health_check_${suffix}`,
+          description: '演示工具：读取 AgentHub 健康状态',
+          endpoint: `${this.backendBaseUrl()}/api/health`,
+          method: 'GET',
+          parameters: { type: 'object' }
+        });
+        await this.postJson(`/api/functions/${func.id}/invoke`, { input: {} });
+        const kb = await this.postJson('/api/knowledge-bases', {
+          name: `dify-demo-kb-${suffix}`,
+          description: 'Dify 替代演示知识库'
+        });
+        const doc = await this.postJson(`/api/knowledge-bases/${kb.id}/documents`, {
+          title: '迁移验收说明',
+          sourceUri: 'demo://dify-replacement',
+          mimeType: 'text/plain'
+        });
+        await this.postJson(`/api/knowledge-bases/${kb.id}/documents/${doc.id}/chunks`, {
+          content: 'AgentHub 交付验收关注多租户隔离、工具调用审计、RAG 检索和 Trace 追踪。',
+          chunkIndex: 0
+        });
+        await this.postJson('/api/workflows', {
+          name: `dify-demo-workflow-${suffix}`,
+          description: 'Dify 替代演示工作流',
+          definition: { nodes: [{ id: 'agent-summary', agentId: String(agent.id), timeoutMs: 30000 }] }
+        });
+        await this.postJson('/api/bots/bindings', {
+          channel: 'webhook',
+          channelBotId: `demo-bot-${suffix}`,
+          agentId: String(agent.id),
+          secret: 'demo-secret'
+        });
+        this.seedMessage = '演示数据已生成，交付就绪度已刷新。';
+        await this.refreshAll();
+      } catch (error) {
+        this.seedMessage = error.message || '演示数据生成失败';
+      } finally {
+        this.seedBusy = false;
+      }
+    },
+    async postJson(url, payload) {
+      const response = await apiFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `${url} failed`);
+      }
+      return response.json();
+    },
+    backendBaseUrl() {
+      return import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8080';
     },
     async loadTraces() {
       const response = await apiFetch('/api/traces');
@@ -399,9 +529,14 @@ export default {
   margin-top: 5px;
   color: var(--text-muted);
 }
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -461,6 +596,10 @@ button.secondary,
 .tabs button {
   background: transparent;
   color: var(--text);
+}
+button.secondary {
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 .tabs button.active,
 button:hover {
@@ -556,6 +695,31 @@ textarea {
   border-radius: 6px;
   background: var(--surface-muted);
   color: var(--text-muted);
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pill.ready {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.pill.pending {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.readiness-action {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text);
 }
 .notice {
   margin-top: 12px;
