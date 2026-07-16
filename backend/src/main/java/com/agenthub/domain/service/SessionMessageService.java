@@ -34,10 +34,18 @@ public class SessionMessageService {
     }
 
     public Message send(String sessionId, Message userMessage) {
-        return send(sessionId, userMessage, null);
+        return sendWithTrace(sessionId, userMessage, null).getMessage();
     }
 
     public Message send(String sessionId, Message userMessage, Consumer<String> chunkHandler) {
+        return sendWithTrace(sessionId, userMessage, chunkHandler).getMessage();
+    }
+
+    public SessionMessageResult sendWithTrace(String sessionId, Message userMessage) {
+        return sendWithTrace(sessionId, userMessage, null);
+    }
+
+    public SessionMessageResult sendWithTrace(String sessionId, Message userMessage, Consumer<String> chunkHandler) {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         List<Message> existing = session.getMessages() != null ? new ArrayList<>(session.getMessages()) : new ArrayList<>();
@@ -46,12 +54,14 @@ public class SessionMessageService {
         StepRecordEntity step = traceService.startStep(trace.getId(), sessionId, null, "react-loop", session.getAgentId(), userMessage.getContent());
 
         List<Message> generated;
+        String status;
         try {
             Agent agent = agentRepository.findById(session.getAgentId())
                     .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + session.getAgentId()));
             generated = reActEngine.executeReActLoop(agent, session, userMessage, chunkHandler);
             traceService.completeStep(step, lastContent(generated));
             traceService.finish(trace.getId(), "SUCCEEDED");
+            status = "SUCCEEDED";
         } catch (Exception ex) {
             generated = new ArrayList<>();
             generated.add(userMessage);
@@ -64,12 +74,14 @@ public class SessionMessageService {
             generated.add(failure);
             traceService.failStep(step, ex.getMessage());
             traceService.finish(trace.getId(), "FAILED");
+            status = "FAILED";
         }
         existing.addAll(generated);
         session.setMessages(existing);
         Session saved = sessionRepository.save(session);
         List<Message> messages = saved.getMessages();
-        return messages != null && !messages.isEmpty() ? messages.get(messages.size() - 1) : userMessage;
+        Message response = messages != null && !messages.isEmpty() ? messages.get(messages.size() - 1) : userMessage;
+        return new SessionMessageResult(response, trace.getId(), step.getId(), status);
     }
 
     public Message newUserMessage(String sessionId, String content) {

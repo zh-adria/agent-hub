@@ -7,6 +7,7 @@ import com.agenthub.domain.model.Message;
 import com.agenthub.domain.model.Session;
 import com.agenthub.domain.repository.SessionRepository;
 import com.agenthub.domain.service.SessionMessageService;
+import com.agenthub.domain.service.SessionMessageResult;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -79,8 +80,12 @@ public class SessionApiImpl implements SessionApi {
         Session session = sessionRepository.findById(String.valueOf(sessionId))
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
         Message userMessage = mapToMessage(String.valueOf(sessionId), message);
-        Message response = sessionMessageService.send(session.getId(), userMessage);
-        return mapMessageToResponse(response);
+        SessionMessageResult result = sessionMessageService.sendWithTrace(session.getId(), userMessage);
+        Map<String, Object> response = mapMessageToResponse(result.getMessage());
+        response.put("traceId", result.getTraceId());
+        response.put("stepRecordId", result.getStepRecordId());
+        response.put("status", result.getStatus());
+        return response;
     }
 
     @Override

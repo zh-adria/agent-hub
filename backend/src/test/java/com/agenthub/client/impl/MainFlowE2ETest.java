@@ -84,7 +84,10 @@ class MainFlowE2ETest {
                         .content("{\"role\":\"user\",\"content\":\"hello\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("assistant"))
-                .andExpect(jsonPath("$.content").value("hello from agent"));
+                .andExpect(jsonPath("$.content").value("hello from agent"))
+                .andExpect(jsonPath("$.traceId").exists())
+                .andExpect(jsonPath("$.stepRecordId").exists())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"));
 
         mockMvc.perform(get("/api/sessions/" + sessionId + "/messages")
                         .headers(httpHeaders()))

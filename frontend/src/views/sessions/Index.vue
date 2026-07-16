@@ -34,7 +34,11 @@
       <div class="messages" ref="messagesContainer">
         <div v-for="msg in currentSession.messages" :key="msg.id" class="message" :class="msg.role">
           <div class="message-content">{{ msg.content }}</div>
-          <div class="message-time">{{ formatTime(msg.timestamp) }}</div>
+          <div class="message-time">
+            {{ formatTime(msg.timestamp) }}
+            <span v-if="msg.traceId">Trace {{ shortId(msg.traceId) }}</span>
+            <span v-if="msg.stepRecordId">Step {{ msg.stepRecordId }}</span>
+          </div>
         </div>
       </div>
 
@@ -164,6 +168,10 @@ export default {
     },
     formatTime(date) {
       return new Date(date).toLocaleTimeString();
+    },
+    shortId(value) {
+      const text = String(value || '');
+      return text.length > 10 ? `${text.slice(0, 10)}...` : text;
     },
     formatStatus(status) {
       const map = {
