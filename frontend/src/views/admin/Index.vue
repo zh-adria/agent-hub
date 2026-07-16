@@ -271,6 +271,46 @@
 
     <section v-if="activeTab === 'audit'" class="section">
       <h3>LLM 用量审计</h3>
+      <form class="audit-filter" @submit.prevent="loadAudit">
+        <label>
+          <span>Agent</span>
+          <input v-model="auditFilters.agentId" placeholder="agentId" />
+        </label>
+        <label>
+          <span>Session</span>
+          <input v-model="auditFilters.agentSessionId" placeholder="agentSessionId" />
+        </label>
+        <label>
+          <span>Trace</span>
+          <input v-model="auditFilters.traceId" placeholder="traceId" />
+        </label>
+        <label>
+          <span>User</span>
+          <input v-model="auditFilters.userId" placeholder="userId" />
+        </label>
+        <div class="filter-actions">
+          <button type="submit">应用过滤</button>
+          <button type="button" class="secondary" @click="clearAuditFilters">清空</button>
+        </div>
+      </form>
+      <div class="audit-summary">
+        <section class="mini-metric">
+          <span>记录数</span>
+          <strong>{{ llmAuditSummary.recordCount ?? llmAudit.length }}</strong>
+        </section>
+        <section class="mini-metric">
+          <span>Prompt Token</span>
+          <strong>{{ llmAuditSummary.promptTokens || 0 }}</strong>
+        </section>
+        <section class="mini-metric">
+          <span>Completion Token</span>
+          <strong>{{ llmAuditSummary.completionTokens || 0 }}</strong>
+        </section>
+        <section class="mini-metric">
+          <span>总成本</span>
+          <strong>{{ llmAuditSummary.totalCost || 0 }}</strong>
+        </section>
+      </div>
       <table v-if="llmAudit.length > 0">
         <thead>
           <tr>
@@ -335,7 +375,14 @@ export default {
       selectedBinding: null,
       newSecret: '',
       botMessage: '',
-      llmAudit: []
+      llmAudit: [],
+      llmAuditSummary: {},
+      auditFilters: {
+        agentId: '',
+        agentSessionId: '',
+        traceId: '',
+        userId: ''
+      }
     };
   },
   computed: {
@@ -491,8 +538,33 @@ export default {
       await this.loadBotBindings();
     },
     async loadAudit() {
-      const response = await apiFetch('/api/audit/llm-usage');
-      this.llmAudit = response.ok ? await response.json() : [];
+      const query = this.auditQuery();
+      const [records, summary] = await Promise.all([
+        apiFetch(`/api/audit/llm-usage${query}`),
+        apiFetch(`/api/audit/llm-usage/summary${query}`)
+      ]);
+      this.llmAudit = records.ok ? await records.json() : [];
+      this.llmAuditSummary = summary.ok ? await summary.json() : {};
+    },
+    clearAuditFilters() {
+      this.auditFilters = {
+        agentId: '',
+        agentSessionId: '',
+        traceId: '',
+        userId: ''
+      };
+      return this.loadAudit();
+    },
+    auditQuery() {
+      const params = new URLSearchParams();
+      Object.entries(this.auditFilters).forEach(([key, value]) => {
+        const text = String(value || '').trim();
+        if (text) {
+          params.set(key, text);
+        }
+      });
+      const query = params.toString();
+      return query ? `?${query}` : '';
     },
     statusClass(status) {
       return status === 'UP' ? 'ok' : 'bad';
@@ -647,6 +719,51 @@ th {
   display: grid;
   gap: 8px;
 }
+.audit-filter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.audit-filter label {
+  display: grid;
+  gap: 5px;
+}
+.audit-filter span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+.audit-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.mini-metric {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+.mini-metric span,
+.mini-metric strong {
+  display: block;
+}
+.mini-metric span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.mini-metric strong {
+  margin-top: 4px;
+  font-size: 18px;
+}
 label {
   font-weight: 700;
 }
@@ -741,6 +858,8 @@ pre {
 }
 @media (max-width: 1100px) {
   .status-grid,
+  .audit-filter,
+  .audit-summary,
   .section-grid,
   .split {
     grid-template-columns: 1fr;

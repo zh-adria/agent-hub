@@ -20,11 +20,24 @@ public class LLMUsageAuditController {
             @RequestParam(required = false) String agentSessionId,
             @RequestParam(required = false) String traceId,
             @RequestParam(required = false) String userId) {
+        return auditService.listRecords(filter(agentId, agentSessionId, traceId, userId));
+    }
+
+    @GetMapping("/api/audit/llm-usage/summary")
+    public LLMUsageAuditSummary summary(
+            @RequestParam(required = false) String agentId,
+            @RequestParam(required = false) String agentSessionId,
+            @RequestParam(required = false) String traceId,
+            @RequestParam(required = false) String userId) {
+        return auditService.summarize(filter(agentId, agentSessionId, traceId, userId));
+    }
+
+    private LLMUsageAuditFilter filter(String agentId, String agentSessionId, String traceId, String userId) {
         LLMUsageAuditFilter filter = new LLMUsageAuditFilter();
         filter.setAgentId(agentId);
         filter.setAgentSessionId(agentSessionId);
         filter.setTraceId(traceId);
         filter.setUserId(userId);
-        return auditService.listRecords(filter);
+        return filter;
     }
 }

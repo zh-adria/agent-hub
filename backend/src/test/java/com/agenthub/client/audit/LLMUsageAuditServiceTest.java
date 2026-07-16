@@ -36,6 +36,24 @@ class LLMUsageAuditServiceTest {
         assertThat(service.listRecords(new LLMUsageAuditFilter())).hasSize(2);
     }
 
+    @Test
+    void summarizesFilteredRecords() {
+        InMemoryLLMUsageAuditService service = new InMemoryLLMUsageAuditService();
+        service.record(record("agent-1", "session-1", "trace-1", "user-1"));
+        service.record(record("agent-1", "session-2", "trace-2", "user-2"));
+        service.record(record("agent-2", "session-3", "trace-3", "user-3"));
+        LLMUsageAuditFilter filter = new LLMUsageAuditFilter();
+        filter.setAgentId("agent-1");
+
+        LLMUsageAuditSummary summary = service.summarize(filter);
+
+        assertThat(summary.getRecordCount()).isEqualTo(2);
+        assertThat(summary.getPromptTokens()).isEqualTo(20);
+        assertThat(summary.getCompletionTokens()).isEqualTo(40);
+        assertThat(summary.getTotalTokens()).isEqualTo(60);
+        assertThat(summary.getTotalCost()).isEqualByComparingTo("0.24");
+    }
+
     private LLMUsageAuditRecord record(String agentId, String sessionId, String traceId, String userId) {
         LLMUsageAuditRecord record = new LLMUsageAuditRecord();
         record.setAgentId(agentId);
