@@ -11,8 +11,11 @@ import com.agenthub.infra.persistence.repository.DocumentChunkJpaRepository;
 import com.agenthub.infra.persistence.repository.KnowledgeBaseJpaRepository;
 import com.agenthub.infra.persistence.repository.RagDocumentJpaRepository;
 import com.agenthub.infra.persistence.repository.VectorEmbeddingJpaRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ public class RagApiImpl {
     private final VectorEmbeddingJpaRepository vectorRepository;
     private final VectorSearchService vectorSearchService;
     private final HybridSearchService hybridSearchService;
+    private final ObjectMapper objectMapper;
 
     public RagApiImpl(
             KnowledgeBaseJpaRepository knowledgeBaseRepository,
@@ -35,13 +39,15 @@ public class RagApiImpl {
             DocumentChunkJpaRepository chunkRepository,
             VectorEmbeddingJpaRepository vectorRepository,
             VectorSearchService vectorSearchService,
-            HybridSearchService hybridSearchService) {
+            HybridSearchService hybridSearchService,
+            ObjectMapper objectMapper) {
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
         this.chunkRepository = chunkRepository;
         this.vectorRepository = vectorRepository;
         this.vectorSearchService = vectorSearchService;
         this.hybridSearchService = hybridSearchService;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping
@@ -107,6 +113,7 @@ public class RagApiImpl {
         entity.setSourceUri((String) payload.get("sourceUri"));
         entity.setMimeType(stringValue(payload.get("mimeType"), "text/plain"));
         entity.setContentHash((String) payload.get("contentHash"));
+        entity.setMetadata(metadataJson(payload));
         entity.setStatus(1);
         entity.setCreatedBy(TenantContext.userId());
         entity.setUpdatedBy(TenantContext.userId());
@@ -132,6 +139,7 @@ public class RagApiImpl {
         if (payload.containsKey("sourceUri")) entity.setSourceUri((String) payload.get("sourceUri"));
         if (payload.containsKey("mimeType")) entity.setMimeType((String) payload.get("mimeType"));
         if (payload.containsKey("contentHash")) entity.setContentHash((String) payload.get("contentHash"));
+        if (payload.containsKey("metadata") || payload.containsKey("accessTags")) entity.setMetadata(metadataJson(payload));
         entity.setUpdatedBy(TenantContext.userId());
         return mapDocument(documentRepository.save(entity));
     }
@@ -156,6 +164,7 @@ public class RagApiImpl {
         entity.setContent((String) payload.get("content"));
         entity.setTokenCount(intValue(payload.get("tokenCount"), null));
         entity.setEmbeddingId((String) payload.get("embeddingId"));
+        entity.setMetadata(metadataJson(payload, requireDocumentEntity(knowledgeBaseId, documentId).getMetadata()));
         DocumentChunkEntity saved = chunkRepository.save(entity);
         if (saved.getEmbeddingId() == null || saved.getEmbeddingId().trim().isEmpty()) {
             saved.setEmbeddingId(String.valueOf(vectorSearchService.indexChunk(tenantId(), saved).getId()));
@@ -185,6 +194,7 @@ public class RagApiImpl {
         if (payload.containsKey("content")) entity.setContent((String) payload.get("content"));
         if (payload.containsKey("chunkIndex")) entity.setChunkIndex(intValue(payload.get("chunkIndex"), entity.getChunkIndex()));
         if (payload.containsKey("tokenCount")) entity.setTokenCount(intValue(payload.get("tokenCount"), entity.getTokenCount()));
+        if (payload.containsKey("metadata") || payload.containsKey("accessTags")) entity.setMetadata(metadataJson(payload));
         DocumentChunkEntity saved = chunkRepository.save(entity);
         saved.setEmbeddingId(String.valueOf(vectorSearchService.indexChunk(tenantId(), saved).getId()));
         return mapChunk(chunkRepository.save(saved));
@@ -205,7 +215,7 @@ public class RagApiImpl {
         requireKnowledgeBase(knowledgeBaseId);
         String query = stringValue(payload.get("query"), "");
         int topK = intValue(payload.get("topK"), 5);
-        return hybridSearchService.search(tenantId(), knowledgeBaseId, query, topK);
+        return hybridSearchService.search(tenantId(), knowledgeBaseId, query, topK, stringList(payload.get("accessTags")));
     }
 
     private void requireKnowledgeBase(Long knowledgeBaseId) {
@@ -214,7 +224,11 @@ public class RagApiImpl {
     }
 
     private void requireDocument(Long knowledgeBaseId, Long documentId) {
-        documentRepository.findByIdAndKnowledgeBaseIdAndTenantId(documentId, knowledgeBaseId, tenantId())
+        requireDocumentEntity(knowledgeBaseId, documentId);
+    }
+
+    private RagDocumentEntity requireDocumentEntity(Long knowledgeBaseId, Long documentId) {
+        return documentRepository.findByIdAndKnowledgeBaseIdAndTenantId(documentId, knowledgeBaseId, tenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found: " + documentId));
     }
 
@@ -262,6 +276,8 @@ public class RagApiImpl {
         response.put("sourceUri", entity.getSourceUri());
         response.put("mimeType", entity.getMimeType());
         response.put("contentHash", entity.getContentHash());
+        response.put("metadata", metadataMap(entity.getMetadata()));
+        response.put("accessTags", accessTags(entity.getMetadata()));
         response.put("status", entity.getStatus());
         response.put("createdAt", entity.getCreatedAt());
         response.put("updatedAt", entity.getUpdatedAt());
@@ -277,6 +293,8 @@ public class RagApiImpl {
         response.put("content", entity.getContent());
         response.put("tokenCount", entity.getTokenCount());
         response.put("embeddingId", entity.getEmbeddingId());
+        response.put("metadata", metadataMap(entity.getMetadata()));
+        response.put("accessTags", accessTags(entity.getMetadata()));
         response.put("createdAt", entity.getCreatedAt());
         return response;
     }
@@ -289,6 +307,61 @@ public class RagApiImpl {
         if (value instanceof Number) return ((Number) value).intValue();
         if (value instanceof String && !((String) value).isEmpty()) return Integer.parseInt((String) value);
         return fallback;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> stringList(Object value) {
+        List<String> result = new ArrayList<>();
+        if (value instanceof Iterable) {
+            for (Object item : (Iterable<Object>) value) {
+                if (item != null && !String.valueOf(item).trim().isEmpty()) {
+                    result.add(String.valueOf(item).trim());
+                }
+            }
+        } else if (value instanceof String && !((String) value).trim().isEmpty()) {
+            result.add((String) value);
+        }
+        return result;
+    }
+
+    private String metadataJson(Map<String, Object> payload) {
+        return metadataJson(payload, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String metadataJson(Map<String, Object> payload, String fallback) {
+        Object metadata = payload.get("metadata");
+        if (metadata instanceof String && !((String) metadata).trim().isEmpty()) {
+            return (String) metadata;
+        }
+        Map<String, Object> value = metadata instanceof Map ? new LinkedHashMap<>((Map<String, Object>) metadata) : metadataMap(fallback);
+        if (payload.containsKey("accessTags")) {
+            value.put("accessTags", stringList(payload.get("accessTags")));
+        }
+        return toJson(value);
+    }
+
+    private Map<String, Object> metadataMap(String metadata) {
+        if (metadata == null || metadata.trim().isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            return objectMapper.readValue(metadata, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            return new LinkedHashMap<>();
+        }
+    }
+
+    private List<String> accessTags(String metadata) {
+        return stringList(metadataMap(metadata).get("accessTags"));
+    }
+
+    private String toJson(Map<String, Object> value) {
+        try {
+            return objectMapper.writeValueAsString(value != null ? value : new LinkedHashMap<>());
+        } catch (Exception ex) {
+            return "{}";
+        }
     }
 }
 

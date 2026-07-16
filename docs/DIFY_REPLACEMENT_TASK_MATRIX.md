@@ -24,7 +24,7 @@
 
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
-| RAG 从能召回到可控 | HybridSearch + Rerank | 文档权限过滤契约 | 检索结果受租户和外部权限约束 |
+| RAG 从能召回到可控 | HybridSearch + Rerank | 文档权限过滤契约 | 已落地：文档/chunk metadata 支持 accessTags，检索按请求 accessTags 过滤 |
 | 私有化需要向量库策略 | Milvus adapter | collection / partition 策略文档和配置 | 健康检查能显示 Milvus 策略与状态 |
 | 垂直模板更容易成交 | KnowledgeBase | 增加法律/金融/制造样例数据包 | Demo 能一键创建行业知识库 |
 

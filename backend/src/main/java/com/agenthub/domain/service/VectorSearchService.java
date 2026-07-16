@@ -103,6 +103,7 @@ public class VectorSearchService {
             response.put("chunkIndex", chunk.get().getChunkIndex());
             response.put("content", chunk.get().getContent());
             response.put("embeddingId", String.valueOf(hit.get("embeddingId")));
+            response.put("metadata", chunk.get().getMetadata());
             result.add(response);
         }
         return result;
@@ -126,6 +127,7 @@ public class VectorSearchService {
         response.put("chunkIndex", hit.chunk.getChunkIndex());
         response.put("content", hit.chunk.getContent());
         response.put("embeddingId", String.valueOf(hit.embedding.getId()));
+        response.put("metadata", hit.chunk.getMetadata());
         return response;
     }
 
