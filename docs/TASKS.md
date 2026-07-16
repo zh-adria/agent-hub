@@ -12,6 +12,20 @@
 - Enterprise Channels：真实飞书/企微签名验签、消息幂等、BotBinding 密钥轮换
 - 生产部署准备（监控、日志、健康检查等运维基础设施）
 
+## 生产化缺口任务计划
+
+当前版本已经具备 Dify 替代 MVP 闭环，但距离“企业生产级私有化迁移平台”仍需补齐以下任务。系统已通过 `/api/observability/production-readiness` 和管理控制台“生产化”页签暴露这些缺口，避免把 MVP 状态误判为生产完成。
+
+| 优先级 | 产品域 | 任务 | 当前状态 | 验收口径 |
+|------|--------|------|----------|----------|
+| P0 | Dify Migration | Dify 项目导入/迁移器 | PLANNED | 支持导入 Dify app/workflow/tool/knowledge 导出物，并生成 AgentHub 迁移预检报告 |
+| P0 | AgentOps / Governance | 生产 IAM/RBAC 对接 | PARTIAL | 接入企业 IAM 后，认证、授权、租户隔离测试与 mock 模式保持同一契约 |
+| P0 | Deployment | MySQL/Redis/Milvus 私有化部署档 | PARTIAL | 生产 profile 可用外部 MySQL、Redis、Milvus，并通过健康检查暴露依赖状态 |
+| P1 | Tool / MCP | MCP 工具生态生产化 | PARTIAL | MCP schema 映射、参数校验、工具权限、超时和错误归类可被端到端验证 |
+| P1 | Workflow | 企业级 Workflow 执行 | PARTIAL | 并行 DAG、checkpoint/resume、审批节点、节点级 retry/fallback 都有验收用例 |
+| P1 | Operations | 监控告警与运维对接 | PLANNED | Trace 失败率、Step 失败率、LLM token/cost、Webhook 重放异常可接入外部监控 |
+| P1 | Security | 安全基线与验收材料 | PLANNED | 形成部署安全检查表、密钥管理要求、租户隔离验收脚本和客户交付包 |
+
 ## 当前进度
 
 - 已完成：Agent / Function / Session 的 JPA 持久化基础设施
@@ -39,6 +53,7 @@
 - 已完成：WebSocket/聊天流式传输 MVP
 - 已完成：离线评估批处理（golden dataset）MVP
 - 已完成：Enterprise Bot Binding + 飞书/企微/通用 webhook adapter MVP
+- 已完成：生产化缺口任务计划和 `/api/observability/production-readiness` 可视化检查
 - 后续增强：WebSocket 直连 Token Router 真流式增量、评估指标插件化、真实飞书/企微签名验签
 
 ## AI 业务方向路线图

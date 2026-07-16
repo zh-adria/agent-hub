@@ -452,6 +452,8 @@ Workflow definition 示例：
 - `GET /api/traces`：列出当前租户 trace
 - `GET /api/traces/{traceId}/steps`：列出 trace step records
 - `GET /api/observability/summary`：返回 trace、step、LLM audit 计数
+- `GET /api/observability/delivery-readiness`：返回 Dify 替代 MVP 交付就绪度
+- `GET /api/observability/production-readiness`：返回生产级交付缺口、P0 阻塞项和验收口径
 - `GET /api/health`：返回服务状态和外部 AI adapter 开关状态
 
 ## WebSocket Chat

@@ -213,6 +213,13 @@ class AuthRbacTenantIntegrationTest {
                         .header("X-Tenant-Id", "tenant-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tenantId").value("tenant-001"));
+
+        mockMvc.perform(get("/api/observability/production-readiness")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mvpReady").value(true))
+                .andExpect(jsonPath("$.productionReady").value(false));
     }
 
     @Test

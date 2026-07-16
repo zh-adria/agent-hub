@@ -69,12 +69,56 @@ public class DeliveryReadinessApiImpl {
         return response;
     }
 
+    @GetMapping("/production-readiness")
+    public Map<String, Object> productionReadiness() {
+        List<Map<String, Object>> gaps = new ArrayList<>();
+        gaps.add(gap("P0", "Dify Migration", "PLANNED", "Dify 项目导入/迁移器",
+                "支持导入 Dify app/workflow/tool/knowledge 导出物，并生成 AgentHub 迁移预检报告"));
+        gaps.add(gap("P0", "AgentOps / Governance", "PARTIAL", "生产 IAM/RBAC 对接",
+                "接入企业 IAM 后，认证、授权、租户隔离测试与 mock 模式保持同一契约"));
+        gaps.add(gap("P0", "Deployment", "PARTIAL", "MySQL/Redis/Milvus 私有化部署档",
+                "生产 profile 可用外部 MySQL、Redis、Milvus，并通过健康检查暴露依赖状态"));
+        gaps.add(gap("P1", "Tool / MCP", "PARTIAL", "MCP 工具生态生产化",
+                "MCP schema 映射、参数校验、工具权限、超时和错误归类可被端到端验证"));
+        gaps.add(gap("P1", "Workflow", "PARTIAL", "企业级 Workflow 执行",
+                "并行 DAG、checkpoint/resume、审批节点、节点级 retry/fallback 都有验收用例"));
+        gaps.add(gap("P1", "Operations", "PLANNED", "监控告警与运维对接",
+                "Trace 失败率、Step 失败率、LLM token/cost、Webhook 重放异常可接入外部监控"));
+        gaps.add(gap("P1", "Security", "PLANNED", "安全基线与验收材料",
+                "形成部署安全检查表、密钥管理要求、租户隔离验收脚本和客户交付包"));
+
+        long blockingGapCount = gaps.stream()
+                .filter(item -> "P0".equals(item.get("priority")))
+                .filter(item -> !"DONE".equals(item.get("status")))
+                .count();
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("tenantId", TenantContext.externalTenantId());
+        response.put("target", "生产级 Dify 替代迁移平台");
+        response.put("mvpReady", true);
+        response.put("productionReady", blockingGapCount == 0);
+        response.put("blockingGapCount", blockingGapCount);
+        response.put("totalGapCount", gaps.size());
+        response.put("gaps", gaps);
+        response.put("nextActions", productionNextActions(gaps));
+        return response;
+    }
+
     private Map<String, Object> check(String domain, long count, String evidence) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("domain", domain);
         item.put("ready", count > 0);
         item.put("count", count);
         item.put("evidence", evidence);
+        return item;
+    }
+
+    private Map<String, Object> gap(String priority, String domain, String status, String task, String acceptance) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("priority", priority);
+        item.put("domain", domain);
+        item.put("status", status);
+        item.put("task", task);
+        item.put("acceptance", acceptance);
         return item;
     }
 
@@ -87,6 +131,19 @@ public class DeliveryReadinessApiImpl {
         }
         if (result.isEmpty()) {
             result.add("执行端到端迁移演示并导出 Trace / StepRecord / audit 证据");
+        }
+        return result;
+    }
+
+    private List<String> productionNextActions(List<Map<String, Object>> gaps) {
+        List<String> result = new ArrayList<>();
+        for (Map<String, Object> gap : gaps) {
+            if ("P0".equals(gap.get("priority")) && !"DONE".equals(gap.get("status"))) {
+                result.add("优先补齐 " + gap.get("domain") + "：" + gap.get("task"));
+            }
+        }
+        if (result.isEmpty()) {
+            result.add("执行生产交付验收并冻结客户部署包");
         }
         return result;
     }

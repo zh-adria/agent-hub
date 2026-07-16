@@ -60,4 +60,26 @@ class DeliveryReadinessApiImplTest {
         assertThat((List<?>) response.get("checks")).hasSize(7);
         assertThat((List<?>) response.get("nextActions")).isNotEmpty();
     }
+
+    @Test
+    void reportsProductionReadinessGapsSeparatelyFromMvpReadiness() {
+        TenantContext.set(7L, "tenant-007", "user-1");
+        DeliveryReadinessApiImpl api = new DeliveryReadinessApiImpl(
+                mock(AgentJpaRepository.class),
+                mock(FunctionDefinitionJpaRepository.class),
+                mock(KnowledgeBaseJpaRepository.class),
+                mock(WorkflowDefinitionJpaRepository.class),
+                mock(TraceJpaRepository.class),
+                mock(StepRecordJpaRepository.class),
+                mock(BotBindingJpaRepository.class));
+
+        Map<String, Object> response = api.productionReadiness();
+
+        assertThat(response.get("tenantId")).isEqualTo("tenant-007");
+        assertThat(response.get("mvpReady")).isEqualTo(true);
+        assertThat(response.get("productionReady")).isEqualTo(false);
+        assertThat(response.get("blockingGapCount")).isEqualTo(3L);
+        assertThat((List<?>) response.get("gaps")).hasSize(7);
+        assertThat((List<?>) response.get("nextActions")).isNotEmpty();
+    }
 }

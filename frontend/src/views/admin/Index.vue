@@ -42,6 +42,13 @@
         <strong>{{ readiness.readinessScore ?? '-' }}%</strong>
         <small>{{ readiness.readyCount || 0 }}/{{ readiness.totalCount || 0 }} checks</small>
       </section>
+      <section class="metric">
+        <span>生产化缺口</span>
+        <strong :class="productionReadiness.productionReady ? 'ok' : 'bad'">
+          {{ productionReadiness.blockingGapCount ?? '-' }}
+        </strong>
+        <small>{{ productionReadiness.mvpReady ? 'MVP ready' : 'MVP pending' }}</small>
+      </section>
     </div>
 
     <div class="tabs">
@@ -138,6 +145,56 @@
             暂无待办
           </div>
           <div v-if="seedMessage" class="notice">{{ seedMessage }}</div>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="activeTab === 'production'" class="section">
+      <div class="section-grid">
+        <div>
+          <h3>生产化缺口</h3>
+          <table v-if="productionReadiness.gaps && productionReadiness.gaps.length > 0">
+            <thead>
+              <tr>
+                <th>优先级</th>
+                <th>产品域</th>
+                <th>状态</th>
+                <th>任务</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="gap in productionReadiness.gaps" :key="gap.domain + gap.task">
+                <td>{{ gap.priority }}</td>
+                <td>{{ gap.domain }}</td>
+                <td>
+                  <span :class="['pill', gap.status === 'DONE' ? 'ready' : 'pending']">
+                    {{ gap.status }}
+                  </span>
+                </td>
+                <td>{{ gap.task }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-else class="empty">暂无生产化缺口数据</div>
+        </div>
+        <div>
+          <h3>验收口径</h3>
+          <div
+            v-for="gap in productionReadiness.gaps || []"
+            :key="gap.task"
+            class="readiness-action"
+          >
+            <strong>{{ gap.domain }}</strong>
+            <span>{{ gap.acceptance }}</span>
+          </div>
+          <h3>下一步</h3>
+          <div
+            v-for="action in productionReadiness.nextActions || []"
+            :key="action"
+            class="readiness-action"
+          >
+            {{ action }}
+          </div>
         </div>
       </div>
     </section>
@@ -351,6 +408,7 @@ export default {
       tabs: [
         { key: 'overview', label: '概览', permissions: [] },
         { key: 'readiness', label: '交付就绪', permissions: ['audit:read'] },
+        { key: 'production', label: '生产化', permissions: ['audit:read'] },
         { key: 'traces', label: '链路追踪', permissions: ['trace:read'] },
         { key: 'workflows', label: '工作流', permissions: ['workflow:read'] },
         { key: 'evaluations', label: '评估', permissions: ['evaluation:read'] },
@@ -361,6 +419,7 @@ export default {
       ready: {},
       summary: {},
       readiness: {},
+      productionReadiness: {},
       seedBusy: false,
       seedMessage: '',
       traces: [],
@@ -402,6 +461,7 @@ export default {
         this.loadHealth(),
         this.can('audit:read') ? this.loadSummary() : Promise.resolve(),
         this.can('audit:read') ? this.loadReadiness() : Promise.resolve(),
+        this.can('audit:read') ? this.loadProductionReadiness() : Promise.resolve(),
         this.can('trace:read') ? this.loadTraces() : Promise.resolve(),
         this.can('workflow:read') ? this.loadWorkflows() : Promise.resolve(),
         this.can('evaluation:read') ? this.loadEvaluations() : Promise.resolve(),
@@ -424,6 +484,10 @@ export default {
     async loadReadiness() {
       const response = await apiFetch('/api/observability/delivery-readiness');
       this.readiness = response.ok ? await response.json() : {};
+    },
+    async loadProductionReadiness() {
+      const response = await apiFetch('/api/observability/production-readiness');
+      this.productionReadiness = response.ok ? await response.json() : {};
     },
     async seedDemoData() {
       if (this.seedBusy) return;
@@ -605,7 +669,7 @@ export default {
 }
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -834,6 +898,14 @@ textarea {
   border-radius: 6px;
   background: var(--surface-muted);
   color: var(--text);
+}
+.readiness-action strong,
+.readiness-action span {
+  display: block;
+}
+.readiness-action span {
+  margin-top: 4px;
+  color: var(--text-muted);
 }
 .notice {
   margin-top: 12px;
