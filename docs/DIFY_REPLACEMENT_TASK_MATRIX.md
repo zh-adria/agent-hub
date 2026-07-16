@@ -16,7 +16,7 @@
 
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
-| 多租户隔离是 Dify 替代卖点 | TenantContext + tenant scoped repository | 覆盖所有 API 和后台执行路径 | 跨租户读取返回 404 或 403 |
+| 多租户隔离是 Dify 替代卖点 | TenantContext + tenant scoped repository | 覆盖所有 API 和后台执行路径 | 已落地：Agent、Function、Session、Workflow、KnowledgeBase 跨租户读取返回 404 |
 | 成本和 token 要可查 | LLM usage audit | 查询按 agent/session/trace/user 过滤 | 已落地：审计页支持过滤，后端提供同条件汇总 |
 | 操作留痕要可追溯 | TraceService | Function、Workflow、Session 统一写 StepRecord | 已落地：三类执行路径写入 StepRecord，Session 发送响应返回 traceId / stepRecordId |
 

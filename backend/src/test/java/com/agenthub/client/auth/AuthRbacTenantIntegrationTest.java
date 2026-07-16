@@ -101,6 +101,54 @@ class AuthRbacTenantIntegrationTest {
                         .header("X-Tenant-Id", "tenant-002"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"));
+
+        MvcResult functionResult = mockMvc.perform(post("/api/functions")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"tenant-one-function\",\"endpoint\":\"http://127.0.0.1:1/test\",\"method\":\"GET\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn();
+        String functionId = com.jayway.jsonpath.JsonPath.read(functionResult.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(get("/api/functions/" + functionId)
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-002"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"));
+
+        MvcResult sessionResult = mockMvc.perform(post("/api/sessions")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"agentId\":\"" + agentId + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn();
+        String sessionId = com.jayway.jsonpath.JsonPath.read(sessionResult.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(get("/api/sessions/" + sessionId)
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-002"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"));
+
+        MvcResult knowledgeBaseResult = mockMvc.perform(post("/api/knowledge-bases")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"tenant-one-kb\",\"description\":\"private\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn();
+        Integer knowledgeBaseId = com.jayway.jsonpath.JsonPath.read(knowledgeBaseResult.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(get("/api/knowledge-bases/" + knowledgeBaseId)
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-002"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("RESOURCE_NOT_FOUND"));
     }
 
     @Test
