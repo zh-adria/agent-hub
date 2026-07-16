@@ -31,7 +31,7 @@ public class McpApiImpl {
             function.setDescription((String) tool.get("description"));
             function.setEndpoint((String) firstNonNull(tool.get("endpoint"), tool.get("url")));
             function.setMethod(String.valueOf(firstNonNull(tool.get("method"), "POST")));
-            function.setParameters(toJson(firstNonNull(tool.get("inputSchema"), tool.get("parameters"))));
+            function.setParameters(json(firstNonNull(tool.get("inputSchema"), tool.get("parameters"))));
             function.setTimeoutMs(intValue(tool.get("timeoutMs"), 30000));
             function.setImplementation("mcp");
             function.setOwnerId(TenantContext.userId());
@@ -58,7 +58,7 @@ public class McpApiImpl {
         response.put("description", function.getDescription());
         response.put("endpoint", function.getEndpoint());
         response.put("method", function.getMethod());
-        response.put("parameters", parseJson(function.getParameters()));
+        response.put("parameters", readValue(function.getParameters()));
         response.put("implementation", function.getImplementation());
         return response;
     }
@@ -73,7 +73,7 @@ public class McpApiImpl {
         return fallback;
     }
 
-    private String toJson(Object value) {
+    private String json(Object value) {
         try {
             return objectMapper.writeValueAsString(value != null ? value : new LinkedHashMap<>());
         } catch (Exception ex) {
@@ -81,7 +81,7 @@ public class McpApiImpl {
         }
     }
 
-    private Object parseJson(String value) {
+    private Object readValue(String value) {
         try {
             return objectMapper.readValue(value, Object.class);
         } catch (Exception ex) {

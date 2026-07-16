@@ -81,6 +81,10 @@ export function hasAnyPermission(user: AuthUser | null | undefined, permissions:
   return permissions.length === 0 || permissions.some(permission => hasPermission(user, permission));
 }
 
+export function formatScore(score: number | string | null | undefined): string {
+  return Number(score || 0).toFixed(3);
+}
+
 export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers || {});
   const token = getAccessToken();

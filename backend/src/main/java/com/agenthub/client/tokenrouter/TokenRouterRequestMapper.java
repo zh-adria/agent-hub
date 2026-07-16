@@ -2,6 +2,7 @@ package com.agenthub.client.tokenrouter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,7 +44,7 @@ public class TokenRouterRequestMapper {
     }
 
     private List<TokenRouterMessage> parseMessages(String messagesJson) {
-        if (isBlank(messagesJson)) {
+        if (!StringUtils.hasText(messagesJson)) {
             return Collections.emptyList();
         }
         try {
@@ -65,10 +66,7 @@ public class TokenRouterRequestMapper {
     }
 
     private String valueOrDefault(String value, String defaultValue) {
-        return isBlank(value) ? defaultValue : value;
+        return StringUtils.hasText(value) ? value : defaultValue;
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
-    }
 }

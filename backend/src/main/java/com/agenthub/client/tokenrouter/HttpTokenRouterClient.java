@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -79,7 +80,7 @@ public class HttpTokenRouterClient implements TokenRouterClient {
                         try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
                             String line;
                             while ((line = reader.readLine()) != null) {
-                                if (!isBlank(line)) {
+                                if (StringUtils.hasText(line)) {
                                     chunkHandler.accept(line);
                                 }
                             }
@@ -102,14 +103,11 @@ public class HttpTokenRouterClient implements TokenRouterClient {
     }
 
     private TokenRouterClientException mapStatus(HttpStatus status, String body) {
-        String message = isBlank(body) ? status.toString() : body;
+        String message = StringUtils.hasText(body) ? body : status.toString();
         if (status == HttpStatus.FORBIDDEN || status == HttpStatus.TOO_MANY_REQUESTS) {
             return new TokenRouterPolicyDeniedException(message);
         }
         return new TokenRouterClientException("Token Router request failed: " + message);
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
-    }
 }

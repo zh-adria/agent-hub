@@ -339,7 +339,7 @@
 </template>
 
 <script>
-import { apiFetch, hasPermission } from '../../api';
+import { apiFetch, hasPermission, formatScore } from '../../api';
 
 export default {
   props: {
@@ -568,9 +568,6 @@ export default {
     },
     statusClass(status) {
       return status === 'UP' ? 'ok' : 'bad';
-    },
-    formatScore(score) {
-      return Number(score || 0).toFixed(3);
     },
     joinList(values) {
       return values && values.length > 0 ? values.join(', ') : '-';

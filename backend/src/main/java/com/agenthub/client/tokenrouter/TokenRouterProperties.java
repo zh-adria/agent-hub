@@ -2,6 +2,7 @@ package com.agenthub.client.tokenrouter;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
 @ConfigurationProperties(prefix = "token-router")
@@ -11,17 +12,17 @@ public class TokenRouterProperties {
     private String streamCompletionPath = "/api/chat/completions/stream";
 
     public String completionUrl() {
-        return join(baseUrl, completionPath);
+        return UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path(completionPath)
+                .build()
+                .toUriString();
     }
 
     public String streamCompletionUrl() {
-        return join(baseUrl, streamCompletionPath);
-    }
-
-    private String join(String base, String path) {
-        String trimmedBase = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
-        String normalizedPath = path.startsWith("/") ? path : "/" + path;
-        return trimmedBase + normalizedPath;
+        return UriComponentsBuilder.fromHttpUrl(baseUrl)
+                .path(streamCompletionPath)
+                .build()
+                .toUriString();
     }
 
     public String getBaseUrl() { return baseUrl; }

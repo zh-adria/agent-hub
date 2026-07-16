@@ -92,7 +92,7 @@
 </template>
 
 <script>
-import { apiFetch, hasPermission } from '../../api';
+import { apiFetch, hasPermission, formatScore } from '../../api';
 
 export default {
   props: {
@@ -251,9 +251,6 @@ export default {
         return;
       }
       this.searchResults = await response.json();
-    },
-    formatScore(score) {
-      return Number(score || 0).toFixed(3);
     }
   }
 };

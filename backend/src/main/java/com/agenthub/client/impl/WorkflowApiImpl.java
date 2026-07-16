@@ -35,7 +35,7 @@ public class WorkflowApiImpl {
         entity.setTenantId(TenantContext.tenantId());
         entity.setName(String.valueOf(payload.get("name")));
         entity.setDescription((String) payload.get("description"));
-        entity.setDefinition(toJson(payload.get("definition")));
+        entity.setDefinition(json(payload.get("definition")));
         entity.setStatus(1);
         entity.setCreatedBy(TenantContext.userId());
         entity.setUpdatedBy(TenantContext.userId());
@@ -62,7 +62,7 @@ public class WorkflowApiImpl {
                 .orElseThrow(() -> new ResourceNotFoundException("Workflow not found: " + workflowId));
         if (payload.containsKey("name")) entity.setName(String.valueOf(payload.get("name")));
         if (payload.containsKey("description")) entity.setDescription((String) payload.get("description"));
-        if (payload.containsKey("definition")) entity.setDefinition(toJson(payload.get("definition")));
+        if (payload.containsKey("definition")) entity.setDefinition(json(payload.get("definition")));
         entity.setUpdatedBy(TenantContext.userId());
         return map(workflowRepository.save(entity));
     }
@@ -85,14 +85,14 @@ public class WorkflowApiImpl {
         response.put("id", entity.getId());
         response.put("name", entity.getName());
         response.put("description", entity.getDescription());
-        response.put("definition", parseJson(entity.getDefinition()));
+        response.put("definition", readValue(entity.getDefinition()));
         response.put("status", entity.getStatus());
         response.put("createdAt", entity.getCreatedAt());
         response.put("updatedAt", entity.getUpdatedAt());
         return response;
     }
 
-    private String toJson(Object value) {
+    private String json(Object value) {
         try {
             return objectMapper.writeValueAsString(value != null ? value : new LinkedHashMap<>());
         } catch (Exception ex) {
@@ -100,7 +100,7 @@ public class WorkflowApiImpl {
         }
     }
 
-    private Object parseJson(String value) {
+    private Object readValue(String value) {
         try {
             return objectMapper.readValue(value, Object.class);
         } catch (Exception ex) {
