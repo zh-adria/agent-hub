@@ -20,14 +20,17 @@
       <section class="metric">
         <span>链路数</span>
         <strong>{{ summary.traceCount ?? '-' }}</strong>
+        <small>成功 {{ summary.traceSucceededCount ?? 0 }} / 失败 {{ summary.traceFailedCount ?? 0 }}</small>
       </section>
       <section class="metric">
         <span>步骤记录</span>
         <strong>{{ summary.stepRecordCount ?? '-' }}</strong>
+        <small>成功 {{ summary.stepSucceededCount ?? 0 }} / 失败 {{ summary.stepFailedCount ?? 0 }}</small>
       </section>
       <section class="metric">
         <span>用量审计</span>
         <strong>{{ summary.llmAuditRecordCount ?? '-' }}</strong>
+        <small>{{ summary.llmTotalTokens || 0 }} tokens</small>
       </section>
     </div>
 
@@ -400,16 +403,18 @@ export default {
   display: grid;
   grid-template-columns: repeat(5, minmax(120px, 1fr));
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .metric {
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .metric span,
-.metric strong {
+.metric strong,
+.metric small {
   display: block;
 }
 .metric span {
@@ -419,6 +424,12 @@ export default {
 .metric strong {
   margin-top: 6px;
   font-size: 22px;
+  line-height: 28px;
+}
+.metric small {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 12px;
 }
 .metric strong.ok {
   color: var(--success);
@@ -428,9 +439,13 @@ export default {
 }
 .tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 16px;
   overflow-x: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
 }
 button {
   min-height: 36px;
@@ -440,10 +455,11 @@ button {
   background: var(--primary);
   color: #fff;
   cursor: pointer;
+  font-weight: 700;
 }
 button.secondary,
 .tabs button {
-  background: #e8eef4;
+  background: transparent;
   color: var(--text);
 }
 .tabs button.active,
@@ -460,6 +476,7 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .section h3 {
   margin: 0 0 12px;
@@ -516,10 +533,12 @@ textarea {
   background: var(--surface);
   color: var(--text);
   text-align: left;
+  border-radius: 6px;
+  box-shadow: var(--shadow-sm);
 }
 .list-item.active {
   border-color: var(--primary);
-  background: #eef7fa;
+  background: var(--primary-soft);
 }
 .list-item strong,
 .list-item span {

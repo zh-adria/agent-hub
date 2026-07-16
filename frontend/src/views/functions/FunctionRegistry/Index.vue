@@ -1,7 +1,10 @@
 <template>
   <div class="function-registry">
     <div class="page-header">
-      <h2>函数注册中心</h2>
+      <div>
+        <h2>函数注册中心</h2>
+        <p>注册 HTTP / MCP 工具，并验证 Agent 可调用能力。</p>
+      </div>
       <button v-if="canCreate" @click="showCreateForm = true">注册函数</button>
     </div>
 
@@ -10,7 +13,7 @@
       <div v-for="func in functions" :key="func.id" class="function-card">
         <h3>{{ func.name }}</h3>
         <p>{{ func.description || '暂无描述' }}</p>
-        <span>{{ func.method }} {{ func.endpoint }}</span>
+        <code>{{ func.method }} {{ func.endpoint }}</code>
         <div class="actions">
           <button v-if="canInvoke" @click="testFunction(func)">测试</button>
           <button v-if="canUpdate" @click="editFunction(func)">编辑</button>
@@ -156,6 +159,11 @@ export default {
 .page-header h2 {
   margin: 0;
   font-size: 22px;
+  line-height: 28px;
+}
+.page-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
 }
 .page-header button {
   min-height: 36px;
@@ -165,6 +173,7 @@ export default {
   background: var(--primary);
   color: #fff;
   cursor: pointer;
+  font-weight: 700;
 }
 .function-list {
   display: grid;
@@ -176,6 +185,7 @@ export default {
   padding: 14px;
   border-radius: 6px;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .function-card h3 {
   margin: 0 0 6px;
@@ -185,8 +195,11 @@ export default {
   margin: 0 0 8px;
   color: var(--text-muted);
 }
-.function-card span {
+.function-card code {
   display: block;
+  padding: 7px 8px;
+  border-radius: 5px;
+  background: var(--surface-muted);
   color: var(--text-muted);
   font-size: 12px;
   word-break: break-all;
@@ -203,6 +216,7 @@ export default {
   background: var(--primary);
   color: #fff;
   cursor: pointer;
+  font-weight: 700;
 }
 .actions button.danger {
   background: var(--danger);
@@ -219,17 +233,18 @@ export default {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(17, 24, 32, 0.46);
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 18px;
 }
 .modal-content {
   background: var(--surface);
   padding: 20px;
   border-radius: 6px;
-  width: 500px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.24);
+  width: min(520px, 100%);
+  box-shadow: var(--shadow-md);
 }
 .form-group {
   margin-bottom: 15px;

@@ -1,7 +1,10 @@
 <template>
   <div class="session-manager">
     <div class="session-list">
-      <h2>会话管理</h2>
+      <div class="session-title">
+        <h2>会话管理</h2>
+        <p>创建会话并验证 Agent 运行链路。</p>
+      </div>
       <form v-if="canCreate" class="create-session" @submit.prevent="createSession">
         <label>Agent</label>
         <select v-model="newSession.agentId" required>
@@ -181,22 +184,33 @@ export default {
 <style scoped>
 .session-manager {
   display: flex;
-  height: 100vh;
-  background: var(--surface);
+  min-height: 100vh;
+  background: var(--bg);
 }
 .session-list {
-  width: 320px;
+  width: 340px;
   border-right: 1px solid var(--border);
-  background: var(--surface-muted);
+  background: var(--surface);
   overflow-y: auto;
 }
-.session-list h2 {
+.session-title {
+  padding: 20px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.session-title h2,
+.session-title p {
   margin: 0;
-  padding: 20px 16px 4px;
+}
+.session-title h2 {
   font-size: 22px;
+  line-height: 28px;
+}
+.session-title p {
+  margin-top: 4px;
+  color: var(--text-muted);
 }
 .create-session {
-  padding: 15px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   display: grid;
   gap: 8px;
@@ -221,15 +235,25 @@ export default {
   border: 0;
   border-radius: 5px;
   cursor: pointer;
+  font-weight: 700;
 }
 .session-card {
-  padding: 15px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   background: var(--surface);
 }
 .session-card:hover {
-  background: #eef7fa;
+  background: var(--primary-soft);
+}
+.session-card h3,
+.session-card p {
+  margin: 0;
+}
+.session-card p {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 .session-card .status {
   display: inline-block;
@@ -250,6 +274,8 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
 }
 .chat-header {
   padding: 15px;
@@ -274,6 +300,7 @@ export default {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  background: var(--bg);
 }
 .message {
   margin-bottom: 15px;
@@ -288,9 +315,10 @@ export default {
 }
 .message-content {
   padding: 10px 15px;
-  border-radius: 8px;
+  border-radius: 7px;
   display: inline-block;
   text-align: left;
+  box-shadow: var(--shadow-sm);
 }
 .message.user .message-content {
   background: var(--primary);
@@ -310,6 +338,7 @@ export default {
   border-top: 1px solid var(--border);
   display: flex;
   gap: 10px;
+  background: var(--surface);
 }
 .message-input input {
   flex: 1;
@@ -324,6 +353,7 @@ export default {
   border: none;
   border-radius: 5px;
   cursor: pointer;
+  font-weight: 700;
 }
 .message-input button:disabled {
   background: #ccc;

@@ -1,7 +1,10 @@
 <template>
   <div class="agent-studio">
     <div class="page-header">
-      <h2>Agent 工作台</h2>
+      <div>
+        <h2>Agent 工作台</h2>
+        <p>配置可运行 Agent、绑定工具并维护提示词。</p>
+      </div>
       <button v-if="canCreate" type="button" @click="resetForm">新建 Agent</button>
     </div>
     <div class="agent-grid">
@@ -21,7 +24,10 @@
       </section>
 
       <section v-if="canCreate || canUpdate">
-        <h3>{{ agent.id ? '编辑 Agent' : '创建 Agent' }}</h3>
+        <div class="panel-head">
+          <h3>{{ agent.id ? '编辑 Agent' : '创建 Agent' }}</h3>
+          <span>{{ agent.id ? `ID ${agent.id}` : 'Draft' }}</span>
+        </div>
         <form @submit.prevent="saveAgent">
           <div class="form-group">
             <label>Agent 名称</label>
@@ -154,16 +160,27 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+}
+.page-header h2,
+.page-header p {
+  margin: 0;
 }
 .page-header h2 {
-  margin: 0;
   font-size: 22px;
+  line-height: 28px;
+}
+.page-header p {
+  margin-top: 4px;
+  color: var(--text-muted);
 }
 .agent-grid {
   display: grid;
   grid-template-columns: minmax(300px, 420px) minmax(420px, 1fr);
-  gap: 18px;
+  gap: 16px;
+}
+.agent-grid > section {
+  min-width: 0;
 }
 .agent-card {
   display: flex;
@@ -174,6 +191,7 @@ export default {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .agent-card h3 {
   margin: 0 0 6px;
@@ -191,6 +209,21 @@ export default {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.panel-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.panel-head span {
+  color: var(--text-soft);
+  font-size: 12px;
 }
 .empty {
   color: var(--text-muted);
@@ -210,7 +243,9 @@ export default {
 label {
   display: block;
   margin-bottom: 5px;
-  font-weight: bold;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
 }
 input, textarea, select {
   width: 100%;
@@ -233,12 +268,20 @@ button {
   color: white;
   border: none;
   cursor: pointer;
+  font-weight: 700;
 }
 button:hover {
   background: var(--primary-strong);
 }
 button.danger {
   background: var(--danger);
+}
+section:last-child {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 @media (max-width: 900px) {
   .agent-grid,

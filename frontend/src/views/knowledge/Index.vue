@@ -1,7 +1,10 @@
 <template>
   <div class="knowledge-page">
     <div class="page-header">
-      <h2>知识库</h2>
+      <div>
+        <h2>知识库</h2>
+        <p>维护知识库、文档分块和混合检索结果。</p>
+      </div>
     </div>
 
     <div class="layout">
@@ -261,19 +264,32 @@ export default {
   padding: 24px;
 }
 .page-header {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+}
+.page-header h2,
+.page-header p {
+  margin: 0;
 }
 .page-header h2 {
-  margin: 0;
   font-size: 22px;
+  line-height: 28px;
+}
+.page-header p {
+  margin-top: 4px;
+  color: var(--text-muted);
 }
 .layout {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(280px, 360px) minmax(360px, 1fr);
-  gap: 18px;
+  gap: 16px;
 }
 .panel {
   min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .panel h3 {
   margin: 0 0 12px;
@@ -302,6 +318,7 @@ button {
   border: 0;
   border-radius: 5px;
   cursor: pointer;
+  font-weight: 700;
 }
 .inline-form button,
 .chunk-form button {
@@ -319,10 +336,11 @@ button {
   border-radius: 6px;
   background: var(--surface);
   text-align: left;
+  box-shadow: var(--shadow-sm);
 }
 .list-item.active {
   border-color: var(--primary);
-  background: #eef7fa;
+  background: var(--primary-soft);
 }
 .danger-button {
   width: 100%;
@@ -354,6 +372,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .search-results {
   margin-bottom: 16px;

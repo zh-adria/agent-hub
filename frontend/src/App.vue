@@ -8,12 +8,18 @@
         <p>使用本地演示账号进入 Agent 管理与运营控制台。</p>
       </div>
       <form @submit.prevent="submitLogin">
-        <label>租户</label>
-        <input v-model="loginForm.tenantCode" autocomplete="organization" required />
-        <label>用户名</label>
-        <input v-model="loginForm.username" autocomplete="username" required />
-        <label>密码</label>
-        <input v-model="loginForm.password" type="password" autocomplete="current-password" required />
+        <label>
+          <span>租户</span>
+          <input v-model="loginForm.tenantCode" autocomplete="organization" required />
+        </label>
+        <label>
+          <span>用户名</span>
+          <input v-model="loginForm.username" autocomplete="username" required />
+        </label>
+        <label>
+          <span>密码</span>
+          <input v-model="loginForm.password" type="password" autocomplete="current-password" required />
+        </label>
         <button type="submit" :disabled="loginBusy">{{ loginBusy ? '登录中...' : '登录' }}</button>
         <p v-if="loginError" class="error">{{ loginError }}</p>
       </form>
@@ -22,15 +28,23 @@
 
   <div v-else class="app-shell">
     <aside class="sidebar">
-      <div class="brand">AgentHub</div>
-      <button
-        v-for="item in visibleNavItems"
-        :key="item.key"
-        :class="{ active: activeView === item.key }"
-        @click="activeView = item.key"
-      >
-        {{ item.label }}
-      </button>
+      <div class="brand">
+        <span class="brand-mark">AH</span>
+        <div>
+          <strong>AgentHub</strong>
+          <small>Enterprise AgentOps</small>
+        </div>
+      </div>
+      <nav class="nav-stack">
+        <button
+          v-for="item in visibleNavItems"
+          :key="item.key"
+          :class="{ active: activeView === item.key }"
+          @click="activeView = item.key"
+        >
+          <span>{{ item.label }}</span>
+        </button>
+      </nav>
       <div class="account">
         <strong>{{ currentUser.displayName || currentUser.username }}</strong>
         <span>{{ currentUser.tenantId }}</span>
@@ -151,19 +165,26 @@ export default {
 }
 
 :root {
-  --bg: #f4f6f8;
+  --bg: #f3f5f7;
   --surface: #ffffff;
-  --surface-muted: #f8fafc;
-  --border: #d9e0e8;
-  --border-strong: #b8c4d2;
-  --text: #17202a;
-  --text-muted: #667085;
-  --primary: #176b87;
-  --primary-strong: #0f5369;
+  --surface-muted: #f8fafb;
+  --border: #d8dee6;
+  --border-strong: #aeb8c5;
+  --text: #18202b;
+  --text-muted: #687385;
+  --text-soft: #8a95a5;
+  --primary: #175c62;
+  --primary-strong: #0d4349;
+  --primary-soft: #e7f2f1;
   --danger: #b42318;
+  --danger-soft: #fff1f0;
   --success: #1f7a4d;
-  --sidebar: #17202a;
-  --sidebar-active: #263445;
+  --success-soft: #eaf6ef;
+  --sidebar: #111820;
+  --sidebar-line: #26313d;
+  --sidebar-active: #1f3a40;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 16px 36px rgba(16, 24, 40, 0.12);
 }
 
 body {
@@ -172,6 +193,7 @@ body {
   color: var(--text);
   background: var(--bg);
   font-size: 14px;
+  line-height: 1.45;
 }
 
 .boot-screen,
@@ -180,21 +202,26 @@ body {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--bg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(243, 245, 247, 0.96)), var(--bg);
 }
 
 .login-panel {
-  width: min(440px, 100%);
-  padding: 28px;
+  width: min(420px, 100%);
+  padding: 30px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 18px 44px rgba(23, 32, 42, 0.12);
+  box-shadow: var(--shadow-md);
 }
 
 .login-panel h1,
 .login-panel p {
   margin: 0;
+}
+
+.login-panel h1 {
+  font-size: 28px;
+  line-height: 34px;
 }
 
 .login-panel p {
@@ -204,25 +231,37 @@ body {
 
 .login-panel form {
   display: grid;
-  gap: 9px;
+  gap: 12px;
   margin-top: 22px;
 }
 
 .login-panel label {
+  display: grid;
+  gap: 6px;
   font-weight: 700;
 }
 
-.login-panel input,
+.login-panel label span {
+  font-size: 13px;
+}
+
+button,
 input,
 textarea,
 select {
   font: inherit;
 }
 
+input,
+textarea,
+select {
+  color: var(--text);
+}
+
 .login-panel input {
   width: 100%;
   min-height: 38px;
-  padding: 8px 10px;
+  padding: 8px 11px;
   border: 1px solid var(--border);
   border-radius: 5px;
 }
@@ -240,6 +279,7 @@ select {
   background: var(--primary);
   color: #fff;
   cursor: pointer;
+  font-weight: 700;
 }
 
 .login-panel button:disabled {
@@ -257,29 +297,67 @@ select {
 }
 
 .sidebar {
-  width: 236px;
+  position: sticky;
+  top: 0;
+  width: 248px;
+  height: 100vh;
   padding: 18px 14px;
   background: var(--sidebar);
   color: #fff;
+  display: flex;
+  flex-direction: column;
 }
 
 .brand {
-  margin-bottom: 22px;
-  padding: 0 8px;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 0 8px 16px;
+  border-bottom: 1px solid var(--sidebar-line);
 }
 
-.sidebar > button {
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  background: #d9ece9;
+  color: #0f3f44;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  font-size: 17px;
+  line-height: 20px;
+}
+
+.brand small {
+  margin-top: 2px;
+  color: #9eabb8;
+  font-size: 11px;
+}
+
+.nav-stack {
+  display: grid;
+  gap: 5px;
+}
+
+.nav-stack button {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 38px;
-  margin-bottom: 6px;
-  padding: 9px 10px;
+  min-height: 40px;
+  padding: 9px 11px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 7px;
   background: transparent;
   color: #dbe4ef;
   text-align: left;
@@ -287,16 +365,16 @@ select {
   font-size: 14px;
 }
 
-.sidebar > button.active,
-.sidebar > button:hover {
+.nav-stack button.active,
+.nav-stack button:hover {
   background: var(--sidebar-active);
   color: #fff;
 }
 
 .account {
-  margin-top: 28px;
+  margin-top: auto;
   padding: 12px 8px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid var(--sidebar-line);
 }
 
 .account strong,
@@ -331,18 +409,31 @@ select {
   min-height: 100vh;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
+button {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(23, 107, 135, 0.28);
+  outline: 2px solid rgba(23, 92, 98, 0.28);
   outline-offset: 1px;
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+  }
+
+  .nav-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>
