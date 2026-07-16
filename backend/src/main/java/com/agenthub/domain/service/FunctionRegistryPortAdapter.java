@@ -2,7 +2,6 @@ package com.agenthub.domain.service;
 
 import com.agenthub.domain.model.FunctionDefinition;
 import com.agenthub.domain.port.FunctionRegistry;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -84,7 +83,7 @@ public class FunctionRegistryPortAdapter implements FunctionRegistry {
             return;
         }
         try {
-            Map<String, Object> schema = objectMapper.readValue(function.getParameters(), new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> schema = readSchema(function.getParameters());
             Object required = schema.get("required");
             if (required instanceof List) {
                 for (Object field : (List<Object>) required) {
@@ -112,5 +111,17 @@ public class FunctionRegistryPortAdapter implements FunctionRegistry {
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid function parameter schema: " + function.getId(), ex);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readSchema(String value) throws Exception {
+        Object parsed = objectMapper.readValue(value, Object.class);
+        if (parsed instanceof String) {
+            parsed = objectMapper.readValue((String) parsed, Object.class);
+        }
+        if (!(parsed instanceof Map)) {
+            throw new IllegalArgumentException("Function parameter schema must be an object");
+        }
+        return (Map<String, Object>) parsed;
     }
 }

@@ -5,6 +5,7 @@ import com.agenthub.client.auth.AuthenticatedPrincipal;
 import com.agenthub.client.auth.IamIdentityProperties;
 import com.agenthub.client.auth.IdentityService;
 import com.agenthub.client.auth.UnauthorizedException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -29,15 +30,23 @@ public class AuthApi {
     private final RestTemplate restTemplate;
     private final IamIdentityProperties properties;
     private final IdentityService identityService;
+    private final String identityProvider;
 
-    public AuthApi(IamIdentityProperties properties, IdentityService identityService) {
+    public AuthApi(
+            IamIdentityProperties properties,
+            IdentityService identityService,
+            @Value("${agenthub.identity.provider:iam}") String identityProvider) {
         this.restTemplate = new RestTemplate();
         this.properties = properties;
         this.identityService = identityService;
+        this.identityProvider = identityProvider;
     }
 
     @PostMapping("/login")
     public Map<String, Object> login(@RequestBody Map<String, Object> body) {
+        if ("mock".equalsIgnoreCase(identityProvider)) {
+            return mockLogin(body);
+        }
         Map<String, Object> request = new LinkedHashMap<>(body);
         request.putIfAbsent("clientId", properties.getClientId());
         request.putIfAbsent("grantType", "password");
@@ -100,5 +109,24 @@ public class AuthApi {
             return new LinkedHashMap<>((Map<String, Object>) data);
         }
         return new LinkedHashMap<>((Map<String, Object>) body);
+    }
+
+    private Map<String, Object> mockLogin(Map<String, Object> body) {
+        String tenantCode = text(body.get("tenantCode"), "tenant-001");
+        String username = text(body.get("username"), "admin");
+        String token = "tenant-002".equals(tenantCode) ? "tenant-002-token" : "mock-token";
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("accessToken", token);
+        response.put("tokenType", "Bearer");
+        response.put("tenantId", tenantCode);
+        response.put("username", username);
+        return response;
+    }
+
+    private String text(Object value, String fallback) {
+        if (value == null || String.valueOf(value).trim().isEmpty()) {
+            return fallback;
+        }
+        return String.valueOf(value).trim();
     }
 }

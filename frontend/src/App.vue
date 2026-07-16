@@ -5,7 +5,7 @@
     <section class="login-panel">
       <div>
         <h1>AgentHub</h1>
-        <p>使用 IAM 账号登录后进入 Agent 管理与运营控制台。</p>
+        <p>使用本地演示账号进入 Agent 管理与运营控制台。</p>
       </div>
       <form @submit.prevent="submitLogin">
         <label>租户</label>
@@ -69,7 +69,7 @@ export default {
       currentUser: null,
       activeView: 'agents',
       loginForm: {
-        tenantCode: localStorage.getItem('tenantId') || 'default',
+        tenantCode: localStorage.getItem('tenantId') || 'tenant-001',
         username: 'admin',
         password: ''
       },

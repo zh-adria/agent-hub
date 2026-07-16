@@ -26,6 +26,22 @@ class AuthRbacTenantIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
+    void mockLoginReturnsUsableToken() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tenantCode\":\"tenant-001\",\"username\":\"admin\",\"password\":\"demo\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("mock-token"))
+                .andExpect(jsonPath("$.tenantId").value("tenant-001"));
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value("tenant-001"));
+    }
+
+    @Test
     void mockIdentityEndpointsExposeContracts() throws Exception {
         mockMvc.perform(post("/mock/oauth2/introspect")
                         .contentType(MediaType.APPLICATION_JSON)
