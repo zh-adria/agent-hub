@@ -45,7 +45,9 @@ class AuthRbacTenantIntegrationTest {
                         .header("Authorization", "Bearer mock-token")
                         .header("X-Tenant-Id", "tenant-001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tenantId").value("tenant-001"));
+                .andExpect(jsonPath("$.tenantId").value("tenant-001"))
+                .andExpect(jsonPath("$.roles", hasItem("agent_admin")))
+                .andExpect(jsonPath("$.permissions", hasItem("agent:create")));
     }
 
     @Test

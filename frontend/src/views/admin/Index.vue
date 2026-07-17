@@ -199,6 +199,63 @@
       </div>
     </section>
 
+    <section v-if="activeTab === 'evidence'" class="section">
+      <div class="section-grid">
+        <div>
+          <h3>交付验收证据包</h3>
+          <table>
+            <tbody>
+              <tr>
+                <th>租户</th>
+                <td>{{ deliveryEvidence.tenantId || '-' }}</td>
+              </tr>
+              <tr>
+                <th>生成时间</th>
+                <td>{{ deliveryEvidence.generatedAt || '-' }}</td>
+              </tr>
+              <tr>
+                <th>范围</th>
+                <td>{{ deliveryEvidence.scope || '-' }}</td>
+              </tr>
+              <tr>
+                <th>交付就绪</th>
+                <td>
+                  {{ deliveryEvidence.deliveryReadiness?.readyCount ?? 0 }}/{{
+                    deliveryEvidence.deliveryReadiness?.totalCount ?? 0
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <th>生产就绪</th>
+                <td>{{ deliveryEvidence.productionReadiness?.productionReady ? 'ready' : 'pending' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="deliveryEvidence.exportHint" class="notice">{{ deliveryEvidence.exportHint }}</div>
+        </div>
+        <div>
+          <h3>证据端点</h3>
+          <table v-if="deliveryEvidence.evidence && deliveryEvidence.evidence.length > 0">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>端点</th>
+                <th>用途</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in deliveryEvidence.evidence" :key="item.endpoint">
+                <td>{{ item.name }}</td>
+                <td class="clip">{{ item.endpoint }}</td>
+                <td>{{ item.purpose }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-else class="empty">暂无证据包数据</div>
+        </div>
+      </div>
+    </section>
+
     <section v-if="activeTab === 'traces'" class="section">
       <div class="split">
         <div>
@@ -409,6 +466,7 @@ export default {
         { key: 'overview', label: '概览', permissions: [] },
         { key: 'readiness', label: '交付就绪', permissions: ['audit:read'] },
         { key: 'production', label: '生产化', permissions: ['audit:read'] },
+        { key: 'evidence', label: '证据包', permissions: ['audit:read'] },
         { key: 'traces', label: '链路追踪', permissions: ['trace:read'] },
         { key: 'workflows', label: '工作流', permissions: ['workflow:read'] },
         { key: 'evaluations', label: '评估', permissions: ['evaluation:read'] },
@@ -420,6 +478,7 @@ export default {
       summary: {},
       readiness: {},
       productionReadiness: {},
+      deliveryEvidence: {},
       seedBusy: false,
       seedMessage: '',
       traces: [],
@@ -462,6 +521,7 @@ export default {
         this.can('audit:read') ? this.loadSummary() : Promise.resolve(),
         this.can('audit:read') ? this.loadReadiness() : Promise.resolve(),
         this.can('audit:read') ? this.loadProductionReadiness() : Promise.resolve(),
+        this.can('audit:read') ? this.loadDeliveryEvidence() : Promise.resolve(),
         this.can('trace:read') ? this.loadTraces() : Promise.resolve(),
         this.can('workflow:read') ? this.loadWorkflows() : Promise.resolve(),
         this.can('evaluation:read') ? this.loadEvaluations() : Promise.resolve(),
@@ -488,6 +548,10 @@ export default {
     async loadProductionReadiness() {
       const response = await apiFetch('/api/observability/production-readiness');
       this.productionReadiness = response.ok ? await response.json() : {};
+    },
+    async loadDeliveryEvidence() {
+      const response = await apiFetch('/api/observability/delivery-evidence');
+      this.deliveryEvidence = response.ok ? await response.json() : {};
     },
     async seedDemoData() {
       if (this.seedBusy) return;

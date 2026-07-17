@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -103,6 +104,19 @@ public class DeliveryReadinessApiImpl {
         return response;
     }
 
+    @GetMapping("/delivery-evidence")
+    public Map<String, Object> deliveryEvidence() {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("tenantId", TenantContext.externalTenantId());
+        response.put("generatedAt", Instant.now().toString());
+        response.put("scope", "Dify replacement private delivery acceptance bundle");
+        response.put("deliveryReadiness", deliveryReadiness());
+        response.put("productionReadiness", productionReadiness());
+        response.put("evidence", evidenceItems());
+        response.put("exportHint", "Save this JSON with Trace / StepRecord / LLM usage audit snapshots for customer acceptance.");
+        return response;
+    }
+
     private Map<String, Object> check(String domain, long count, String evidence) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("domain", domain);
@@ -146,5 +160,28 @@ public class DeliveryReadinessApiImpl {
             result.add("执行生产交付验收并冻结客户部署包");
         }
         return result;
+    }
+
+    private List<Map<String, String>> evidenceItems() {
+        List<Map<String, String>> result = new ArrayList<>();
+        result.add(evidence("Runtime summary", "/api/observability/summary",
+                "Trace, StepRecord, token and cost aggregate for the active tenant"));
+        result.add(evidence("Delivery readiness", "/api/observability/delivery-readiness",
+                "Agent, Tool, RAG, Workflow, Trace and Channel readiness checks"));
+        result.add(evidence("Production readiness", "/api/observability/production-readiness",
+                "P0/P1 production gap closure and acceptance criteria"));
+        result.add(evidence("Security baseline", "/api/observability/security-baseline",
+                "IAM, RBAC, tenant isolation and secret management checklist"));
+        result.add(evidence("Operations alerts", "/api/observability/alerts",
+                "Failure-rate, cost and webhook metrics for external monitoring"));
+        return result;
+    }
+
+    private Map<String, String> evidence(String name, String endpoint, String purpose) {
+        Map<String, String> item = new LinkedHashMap<>();
+        item.put("name", name);
+        item.put("endpoint", endpoint);
+        item.put("purpose", purpose);
+        return item;
     }
 }

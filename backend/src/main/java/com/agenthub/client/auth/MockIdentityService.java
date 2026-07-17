@@ -63,6 +63,8 @@ public class MockIdentityService implements IdentityService {
         response.put("username", principal.getUsername());
         response.put("displayName", displayName(principal.getUserId()));
         response.put("email", principal.getUsername() + "@example.com");
+        response.put("roles", new ArrayList<>(principal.getRoles()));
+        response.put("permissions", new ArrayList<>(principal.getPermissions()));
         response.put("authorizationPresent", authorizationPresent);
         return response;
     }
