@@ -109,5 +109,5 @@ AgentHub 的近期产品化切口是 **Dify 替代迁移 + Java 私有化 Agent 
 ## 风险
 
 - Dify 法务与价格对比材料必须在对外销售前补充正式来源，不在代码仓库中写成事实承诺。
-- Java 21 / Spring Boot 3 / Spring AI 迁移是技术路线，不应阻塞当前 Java 8 / Spring Boot 2.7 MVP 交付。
+- Spring Boot 3 / Spring AI 迁移是技术路线，不应阻塞当前 Java 21 / Spring Boot 2.7 MVP 交付。
 - 多租户物理隔离要按客户规模选型，不能默认所有租户一个 Milvus collection 策略。

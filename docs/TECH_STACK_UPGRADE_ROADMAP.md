@@ -2,15 +2,15 @@
 
 ## 目标
 
-在不影响当前 Java 8 / Spring Boot 2 可交付版本的前提下，为 AgentHub 后续私有化交付预留三条升级路径：Java 21、Spring AI MCP、工具层韧性。
+当前后端基线已升级为 Java 21 / Spring Boot 2.7，为 AgentHub 后续私有化交付预留三条升级路径：Spring Boot 3、Spring AI MCP、工具层韧性。
 
-## Java 21 / Spring Boot 3 迁移分支
+## Spring Boot 3 迁移分支
 
-迁移分支建议命名为 `upgrade/java21-springboot3`，只承载技术栈升级，不混入产品功能。
+迁移分支建议命名为 `upgrade/springboot3`，只承载技术栈升级，不混入产品功能。
 
 验收顺序：
 
-1. 升级 Maven compiler 到 Java 21，保持现有测试全部通过。
+1. 保持 Maven compiler 基线为 Java 21，现有测试全部通过。
 2. 升级 Spring Boot 3.x，完成 `javax.*` 到 `jakarta.*` 包迁移。
 3. 引入虚拟线程配置，用于 Agent I/O、工具调用、RAG 检索等阻塞型任务。
 4. 保持 REST API、数据库表结构、前端契约不变。
@@ -38,6 +38,6 @@
 
 ## 不变约束
 
-- 当前可演示版本继续保持 Java 8 可运行。
+- 当前可演示版本以 Java 21 运行，接口和数据库契约保持不变。
 - 升级分支不改变数据库迁移历史。
 - 所有新能力必须继续保留租户隔离、RBAC、审计留痕。

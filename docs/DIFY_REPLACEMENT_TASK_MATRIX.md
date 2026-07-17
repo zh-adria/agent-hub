@@ -40,6 +40,6 @@
 
 | 启发 | 当前项目映射 | 任务 | 验收 |
 |------|--------------|------|------|
-| Java 21 虚拟线程适合 Agent I/O | 当前 Java 8 | 制定 Java 21 / Spring Boot 3 迁移分支 | 已落地：技术栈升级路线文档明确迁移分支、顺序和不变约束 |
+| Java 21 虚拟线程适合 Agent I/O | 当前 Java 21 | 制定 Spring Boot 3 迁移分支 | 已落地：后端编译与运行基线已升级到 Java 21，路线文档保留 Spring Boot 3 迁移顺序和不变约束 |
 | Spring AI 1.1 强化 MCP | 当前自研 LLM 网关 client + MCP adapter | 评估 Spring AI MCP 接入 | 已落地：路线文档明确 Spring AI MCP 作为适配层，不改变 Function API |
 | Resilience4j 是工具层标配 | 当前 RestTemplate timeout | 增加 retry/circuit breaker | 已落地：路线文档明确 Function retry/circuit breaker 与审计接入顺序 |

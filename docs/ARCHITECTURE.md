@@ -292,7 +292,7 @@ AgentHub 将策略拒绝和预算拒绝响应映射为运行时步骤失败。
 
 | 技术 | 选型 | 理由 |
 |------|------|------|
-| 框架 | Spring Boot 2.7.x + Java 8 | 当前 `backend/pom.xml` 实际选型 |
+| 框架 | Spring Boot 2.7.x + Java 21 | 当前 `backend/pom.xml` 实际选型 |
 | ORM | Spring Data JPA | 当前持久层实现 |
 | 数据库 | MySQL 8.0，测试使用 H2 | Agent、Session、RAG、Trace、Workflow 等持久化 |
 | 缓存 | Redis | 限流、会话或后续分布式能力预留 |
