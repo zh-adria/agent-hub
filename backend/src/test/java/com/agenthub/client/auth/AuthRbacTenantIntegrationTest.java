@@ -9,6 +9,13 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.Base64;
+
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -303,14 +310,21 @@ class AuthRbacTenantIntegrationTest {
         MvcResult agentResult = createAgent("eval-agent");
         String agentId = com.jayway.jsonpath.JsonPath.read(agentResult.getResponse().getContentAsString(), "$.id");
 
+        mockMvc.perform(get("/api/evaluations/metrics")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("contains"));
+
         mockMvc.perform(post("/api/evaluations/runs")
                         .header("Authorization", "Bearer mock-token")
                         .header("X-Tenant-Id", "tenant-001")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"empty-eval\",\"agentId\":\"" + agentId + "\",\"cases\":[]}"))
+                        .content("{\"name\":\"metric-eval\",\"agentId\":\"" + agentId + "\",\"cases\":[{\"id\":\"case-1\",\"input\":\"hello\",\"expected\":\"Agent execution failed\",\"metrics\":[\"contains\"]}]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUCCEEDED"))
-                .andExpect(jsonPath("$.score").value(1.0));
+                .andExpect(jsonPath("$.score").value(1.0))
+                .andExpect(jsonPath("$.cases[0].passed").value(true));
     }
 
     @Test
@@ -338,6 +352,38 @@ class AuthRbacTenantIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bindingId").value(bindingId))
                 .andExpect(jsonPath("$.sessionId").value("bot-" + bindingId + "-chat-1"));
+
+        mockMvc.perform(post("/api/bots/webhooks/feishu")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .header("X-Lark-Request-Timestamp", "123456")
+                        .header("X-Lark-Signature", feishuSignature("s1", "123456"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"botId\":\"bot-a\",\"conversationId\":\"chat-2\",\"messageId\":\"signed-1\",\"content\":{\"text\":\"signed hello\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bindingId").value(bindingId))
+                .andExpect(jsonPath("$.sessionId").value("bot-" + bindingId + "-chat-2"));
+
+        MvcResult wecomBindingResult = mockMvc.perform(post("/api/bots/bindings")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"channel\":\"wecom\",\"channelBotId\":\"wx-bot\",\"agentId\":\"" + agentId + "\",\"secret\":\"token-a\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        Integer wecomBindingId = com.jayway.jsonpath.JsonPath.read(wecomBindingResult.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(post("/api/bots/webhooks/wecom")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .header("timestamp", "123456")
+                        .header("nonce", "nonce-a")
+                        .header("msg_signature", sha1Sorted("token-a", "123456", "nonce-a", "cipher-a"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"botId\":\"wx-bot\",\"conversationId\":\"wx-chat\",\"messageId\":\"wx-1\",\"encrypt\":\"cipher-a\",\"content\":{\"text\":\"wecom hello\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bindingId").value(wecomBindingId))
+                .andExpect(jsonPath("$.sessionId").value("bot-" + wecomBindingId + "-wx-chat"));
     }
 
     private MvcResult createAgent(String name) throws Exception {
@@ -349,5 +395,22 @@ class AuthRbacTenantIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
                 .andReturn();
+    }
+
+    private String feishuSignature(String secret, String timestamp) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec((timestamp + "\n" + secret).getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return Base64.getEncoder().encodeToString(mac.doFinal(new byte[0]));
+    }
+
+    private String sha1Sorted(String... values) throws Exception {
+        Arrays.sort(values);
+        MessageDigest digest = MessageDigest.getInstance("SHA-1");
+        byte[] bytes = digest.digest(String.join("", values).getBytes(StandardCharsets.UTF_8));
+        StringBuilder hex = new StringBuilder();
+        for (byte b : bytes) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.toString();
     }
 }

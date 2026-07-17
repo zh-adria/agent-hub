@@ -11,6 +11,8 @@ import com.agenthub.infra.persistence.entity.BotBindingEntity;
 import com.agenthub.infra.persistence.entity.BotWebhookEventEntity;
 import com.agenthub.infra.persistence.repository.BotBindingJpaRepository;
 import com.agenthub.infra.persistence.repository.BotWebhookEventJpaRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -29,18 +31,21 @@ public class BotApiImpl {
     private final SessionRepository sessionRepository;
     private final SessionMessageService sessionMessageService;
     private final BotWebhookEventJpaRepository webhookEventRepository;
+    private final ObjectMapper objectMapper;
 
     public BotApiImpl(
             BotBindingJpaRepository botBindingRepository,
             AgentRepository agentRepository,
             SessionRepository sessionRepository,
             SessionMessageService sessionMessageService,
-            BotWebhookEventJpaRepository webhookEventRepository) {
+            BotWebhookEventJpaRepository webhookEventRepository,
+            ObjectMapper objectMapper) {
         this.botBindingRepository = botBindingRepository;
         this.agentRepository = agentRepository;
         this.sessionRepository = sessionRepository;
         this.sessionMessageService = sessionMessageService;
         this.webhookEventRepository = webhookEventRepository;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/bindings")
@@ -84,13 +89,14 @@ public class BotApiImpl {
     @PostMapping("/webhooks/{channel}")
     public Map<String, Object> webhook(
             @PathVariable String channel,
-            @RequestBody Map<String, Object> payload,
+            @RequestBody String body,
             HttpServletRequest request) {
+        Map<String, Object> payload = parseBody(body);
         String channelBotId = stringValue(firstNonNull(payload.get("botId"), payload.get("channelBotId")), "default");
         BotBindingEntity binding = botBindingRepository
                 .findByTenantIdAndChannelAndChannelBotIdAndStatus(TenantContext.tenantId(), channel, channelBotId, 1)
                 .orElseThrow(() -> new ResourceNotFoundException("Bot binding not found: " + channel + "/" + channelBotId));
-        validateSecret(binding, payload, request);
+        validateSecret(binding, payload, request, body);
         String conversationId = stringValue(firstNonNull(payload.get("conversationId"), payload.get("chatId")), "default");
         String messageId = messageId(channel, payload, request);
         String content = extractContent(payload);
@@ -131,8 +137,14 @@ public class BotApiImpl {
         sessionRepository.save(session);
     }
 
-    private void validateSecret(BotBindingEntity binding, Map<String, Object> payload, HttpServletRequest request) {
+    private void validateSecret(BotBindingEntity binding, Map<String, Object> payload, HttpServletRequest request, String rawBody) {
         if (binding.getSecret() == null || binding.getSecret().trim().isEmpty()) {
+            return;
+        }
+        if (validateFeishu(binding, request)) {
+            return;
+        }
+        if (validateWeCom(binding, payload, request, rawBody)) {
             return;
         }
         String supplied = stringValue(firstNonNull(payload.get("secret"), request.getHeader("X-Bot-Secret")), "");
@@ -149,6 +161,34 @@ public class BotApiImpl {
         if (!constantTimeEquals(binding.getSecret(), supplied)) {
             throw new IllegalArgumentException("Invalid bot webhook secret");
         }
+    }
+
+    private boolean validateFeishu(BotBindingEntity binding, HttpServletRequest request) {
+        String signature = firstHeader(request, "X-Lark-Signature", "X-Feishu-Signature");
+        if (signature == null || signature.trim().isEmpty()) {
+            return false;
+        }
+        String timestamp = firstHeader(request, "X-Lark-Request-Timestamp", "X-Feishu-Request-Timestamp", "timestamp");
+        String expected = feishuSignature(binding.getSecret(), stringValue(timestamp, ""));
+        if (!constantTimeEquals(expected, signature)) {
+            throw new IllegalArgumentException("Invalid Feishu webhook signature");
+        }
+        return true;
+    }
+
+    private boolean validateWeCom(BotBindingEntity binding, Map<String, Object> payload, HttpServletRequest request, String rawBody) {
+        String signature = firstHeader(request, "msg_signature", "X-WeCom-Signature", "X-WeChatWork-Signature");
+        if (signature == null || signature.trim().isEmpty()) {
+            return false;
+        }
+        String timestamp = stringValue(firstNonNull(firstHeader(request, "timestamp", "X-WeCom-Timestamp"), payload.get("timestamp")), "");
+        String nonce = stringValue(firstNonNull(firstHeader(request, "nonce", "X-WeCom-Nonce"), payload.get("nonce")), "");
+        String encrypt = stringValue(firstNonNull(payload.get("encrypt"), rawBody), "");
+        String expected = sha1Sorted(binding.getSecret(), timestamp, nonce, encrypt);
+        if (!constantTimeEquals(expected, signature)) {
+            throw new IllegalArgumentException("Invalid WeCom webhook signature");
+        }
+        return true;
     }
 
     private void saveWebhookEvent(String channel, String messageId, Long bindingId, String sessionId) {
@@ -198,6 +238,36 @@ public class BotApiImpl {
         }
     }
 
+    private String feishuSignature(String secret, String timestamp) {
+        try {
+            String signKey = timestamp + "\n" + secret;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(signKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return Base64.getEncoder().encodeToString(mac.doFinal(new byte[0]));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to compute Feishu webhook signature", ex);
+        }
+    }
+
+    private String sha1Sorted(String... values) {
+        try {
+            List<String> sorted = new ArrayList<>();
+            for (String value : values) {
+                sorted.add(value != null ? value : "");
+            }
+            Collections.sort(sorted);
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            byte[] bytes = digest.digest(String.join("", sorted).getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : bytes) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Failed to compute WeCom webhook signature", ex);
+        }
+    }
+
     private boolean constantTimeEquals(String expected, String supplied) {
         if (expected == null || supplied == null) {
             return false;
@@ -223,5 +293,26 @@ public class BotApiImpl {
 
     private String stringValue(Object value, String fallback) {
         return value != null ? String.valueOf(value) : fallback;
+    }
+
+    private String firstHeader(HttpServletRequest request, String... names) {
+        for (String name : names) {
+            String value = request.getHeader(name);
+            if (value != null && !value.trim().isEmpty()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> parseBody(String body) {
+        if (body == null || body.trim().isEmpty()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            return objectMapper.readValue(body, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid bot webhook payload", ex);
+        }
     }
 }

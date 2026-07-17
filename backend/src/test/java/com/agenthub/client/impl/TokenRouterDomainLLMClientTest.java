@@ -9,7 +9,9 @@ import com.agenthub.domain.model.Message;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,9 +63,34 @@ class TokenRouterDomainLLMClientTest {
         assertThat(tokenRouterClient.extensions.get("agentStepType")).isEqualTo("final_answer");
     }
 
+    @Test
+    void streamsFinalAnswerChunksFromTokenRouter() {
+        CapturingTokenRouterClient tokenRouterClient = new CapturingTokenRouterClient();
+        tokenRouterClient.streamChunks.add("data: {\"choices\":[{\"delta\":{\"content\":\"hel\"}}]}");
+        tokenRouterClient.streamChunks.add("data: {\"choices\":[{\"delta\":{\"content\":\"lo\"}}]}");
+        TokenRouterDomainLLMClient domainClient = new TokenRouterDomainLLMClient(
+                tokenRouterClient, new ObjectMapper(), new InMemoryLLMUsageAuditService());
+        Agent agent = new Agent();
+        agent.setId("agent-1");
+        agent.setModel("gpt-test");
+        Message message = new Message();
+        message.setId("step-stream");
+        message.setSessionId("session-1");
+        message.setRole(Message.MessageRole.USER);
+        message.setContent("hello");
+        List<String> chunks = new ArrayList<>();
+
+        String result = domainClient.streamFinalAnswer(agent, Collections.singletonList(message), chunks::add);
+
+        assertThat(result).isEqualTo("hello");
+        assertThat(chunks).containsExactly("hel", "lo");
+        assertThat(tokenRouterClient.extensions.get("agentStepType")).isEqualTo("final_answer_stream");
+    }
+
     private static class CapturingTokenRouterClient implements TokenRouterClient {
         java.util.Map<String, Object> extensions;
         String model;
+        List<String> streamChunks = new ArrayList<>();
 
         @Override
         public TokenRouterChatResponse complete(TokenRouterChatRequest request) {
@@ -76,7 +103,12 @@ class TokenRouterDomainLLMClientTest {
 
         @Override
         public TokenRouterChatResponse streamComplete(TokenRouterChatRequest request, Consumer<String> chunkHandler) {
-            return complete(request);
+            this.extensions = request.getExtensions();
+            this.model = request.getModelHint();
+            for (String chunk : streamChunks) {
+                chunkHandler.accept(chunk);
+            }
+            return new TokenRouterChatResponse();
         }
     }
 }

@@ -58,7 +58,7 @@
 - 已完成：prod profile 外部 MySQL/Redis/Milvus 配置和 `/api/health/ready` 依赖检查
 - 已完成：P0/P1 生产化缺口闭环，`/api/observability/production-readiness` 返回 productionReady
 - 已完成：MCP readiness、Workflow resume、Operations alerts、安全基线交付端点
-- 后续增强：WebSocket 直连 Token Router 真流式增量、评估指标插件化、真实飞书/企微签名验签
+- 已完成：WebSocket 直连 Token Router 真流式增量、评估指标插件化、真实飞书/企微签名验签
 
 ## AI 业务方向路线图
 

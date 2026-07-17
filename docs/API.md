@@ -467,6 +467,16 @@ Workflow definition 示例：
 ## Workflow
 
 - `POST /api/workflows/{workflowId}/resume`：携带 checkpoint 和审批输入恢复 WAITING_APPROVAL workflow
+
+## Evaluation
+
+- `GET /api/evaluations/metrics`：返回可用评估指标插件（contains、exact、regex）
+- `POST /api/evaluations/runs`：case 可通过 `metrics` 指定评估指标插件
+
+## Enterprise Bot
+
+- `POST /api/bots/webhooks/feishu`：支持 `X-Lark-Request-Timestamp` + `X-Lark-Signature` 飞书签名验签
+- `POST /api/bots/webhooks/wecom`：支持 `timestamp`、`nonce`、`msg_signature` 企微回调签名验签
 - `GET /api/health`：返回服务状态和外部 AI adapter 开关状态
 
 ## WebSocket Chat

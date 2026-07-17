@@ -14,6 +14,7 @@ import com.agenthub.infra.persistence.repository.EvaluationRunJpaRepository;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @RestController
@@ -83,6 +84,18 @@ public class EvaluationApiImpl {
         return mapRun(run, true);
     }
 
+    @GetMapping("/metrics")
+    public List<Map<String, Object>> metrics() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (EvaluationMetric metric : metricPlugins()) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", metric.name());
+            item.put("description", metric.description());
+            result.add(item);
+        }
+        return result;
+    }
+
     private EvaluationCaseResultEntity executeCase(Long runId, String agentId, int index, Map<String, Object> item) {
         String input = stringValue(item.get("input"), "");
         String expected = stringValue(item.get("expected"), "");
@@ -103,7 +116,7 @@ public class EvaluationApiImpl {
             sessionRepository.save(session);
             Message response = sessionMessageService.send(sessionId, sessionMessageService.newUserMessage(sessionId, input));
             result.setActual(response.getContent());
-            result.setPassed(expected.isEmpty() || (response.getContent() != null && response.getContent().contains(expected)));
+            result.setPassed(evaluate(item, expected, response.getContent()));
         } catch (Exception ex) {
             result.setActual("");
             result.setPassed(false);
@@ -153,5 +166,81 @@ public class EvaluationApiImpl {
 
     private String stringValue(Object value, String fallback) {
         return value != null ? String.valueOf(value) : fallback;
+    }
+
+    private boolean evaluate(Map<String, Object> item, String expected, String actual) {
+        List<String> metricNames = metricNames(item);
+        if (metricNames.isEmpty()) {
+            metricNames.add("contains");
+        }
+        for (String metricName : metricNames) {
+            if (!metric(metricName).evaluate(expected, actual)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> metricNames(Map<String, Object> item) {
+        Object value = item.get("metrics");
+        List<String> result = new ArrayList<>();
+        if (value instanceof List) {
+            for (Object metric : (List<Object>) value) {
+                if (metric != null && !String.valueOf(metric).trim().isEmpty()) {
+                    result.add(String.valueOf(metric));
+                }
+            }
+        } else if (value instanceof String && !((String) value).trim().isEmpty()) {
+            result.add((String) value);
+        }
+        return result;
+    }
+
+    private EvaluationMetric metric(String name) {
+        for (EvaluationMetric metric : metricPlugins()) {
+            if (metric.name().equalsIgnoreCase(name)) {
+                return metric;
+            }
+        }
+        throw new IllegalArgumentException("Unsupported evaluation metric: " + name);
+    }
+
+    private List<EvaluationMetric> metricPlugins() {
+        List<EvaluationMetric> result = new ArrayList<>();
+        result.add(new ContainsMetric());
+        result.add(new ExactMetric());
+        result.add(new RegexMetric());
+        return result;
+    }
+
+    private interface EvaluationMetric {
+        String name();
+        String description();
+        boolean evaluate(String expected, String actual);
+    }
+
+    private static class ContainsMetric implements EvaluationMetric {
+        public String name() { return "contains"; }
+        public String description() { return "Actual answer contains expected text"; }
+        public boolean evaluate(String expected, String actual) {
+            return expected == null || expected.isEmpty() || (actual != null && actual.contains(expected));
+        }
+    }
+
+    private static class ExactMetric implements EvaluationMetric {
+        public String name() { return "exact"; }
+        public String description() { return "Actual answer exactly equals expected text"; }
+        public boolean evaluate(String expected, String actual) {
+            return expected == null || expected.isEmpty() || expected.equals(actual);
+        }
+    }
+
+    private static class RegexMetric implements EvaluationMetric {
+        public String name() { return "regex"; }
+        public String description() { return "Actual answer matches expected regular expression"; }
+        public boolean evaluate(String expected, String actual) {
+            return expected == null || expected.isEmpty() || (actual != null && Pattern.compile(expected).matcher(actual).find());
+        }
     }
 }
