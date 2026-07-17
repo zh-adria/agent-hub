@@ -26,6 +26,18 @@
 | P1 | Operations | 监控告警与运维对接 | DONE | Trace/Step 失败率、LLM token/cost、Webhook 事件指标通过 alerts 端点对接外部监控 |
 | P1 | Security | 安全基线与验收材料 | DONE | 安全检查表、密钥管理要求、租户隔离验收证据通过 security-baseline 端点交付 |
 
+## Dify 下一步增强任务
+
+| 优先级 | 任务 | 当前状态 | 验收口径 |
+|------|------|----------|----------|
+| P0 | 证据包 JSON 下载 | DONE | 管理控制台“证据包”页签可下载 `/api/observability/delivery-evidence` 当前 JSON |
+| P0 | 生成演示数据后自动进入证据包 | DONE | 点击“生成演示数据”成功后刷新数据并切换到“证据包”页签 |
+| P0 | 启动脚本固定 JDK 21 | DONE | `scripts/start.bat` / `scripts/start-backend.bat` 路径会优先选择 JDK 21，避免默认 JDK 8 导致 Maven 编译失败 |
+| P1 | 交付证据包导出归档 | TODO | 导出 readiness、summary、security-baseline、alerts、trace/audit 快照组成客户验收归档 |
+| P1 | Dify 导入结果可视化 | TODO | 管理控制台展示 Dify app/workflow/tool/knowledge 映射结果和失败原因 |
+| P1 | 迁移前置检查报告 | TODO | 上传 Dify 导出物后生成风险、缺失工具、知识库权限和工作流节点兼容性报告 |
+| P2 | 客户交付模板包 | TODO | 生成轻量版/标准版/全栈信创版交付清单、部署说明和验收步骤 |
+
 ## 当前进度
 
 - 已完成：Agent / Function / Session 的 JPA 持久化基础设施

@@ -14,6 +14,48 @@ $pidDir = Join-Path $runDir "pids"
 
 New-Item -ItemType Directory -Force -Path $logDir, $pidDir | Out-Null
 
+function Get-JavaMajor($JavaHome) {
+    if (-not $JavaHome) {
+        return 0
+    }
+    $javaExe = Join-Path $JavaHome "bin\java.exe"
+    if (-not (Test-Path $javaExe)) {
+        return 0
+    }
+    $versionText = & $javaExe -version 2>&1 | Out-String
+    if ($versionText -match 'version "(\d+)') {
+        return [int]$Matches[1]
+    }
+    return 0
+}
+
+function Use-Jdk21 {
+    $candidates = @()
+    if ($env:JAVA_HOME) {
+        $candidates += $env:JAVA_HOME
+    }
+    $roots = @(
+        (Join-Path $env:ProgramFiles "Java"),
+        ([Environment]::GetEnvironmentVariable("ProgramFiles(x86)")),
+        "D:\Program Files",
+        "D:\Program Files (x86)"
+    ) | Where-Object { $_ -and (Test-Path $_) }
+    foreach ($root in $roots) {
+        $candidates += Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like "jdk*" -or $_.Name -like "*jdk*" } |
+                Select-Object -ExpandProperty FullName
+    }
+    foreach ($candidate in ($candidates | Select-Object -Unique)) {
+        if ((Get-JavaMajor $candidate) -ge 21) {
+            $env:JAVA_HOME = $candidate
+            $env:Path = (Join-Path $candidate "bin") + [IO.Path]::PathSeparator + $env:Path
+            Write-Output "Using JDK: $candidate"
+            return
+        }
+    }
+    throw "JDK 21 not found. Install JDK 21 or set JAVA_HOME to a JDK 21 directory."
+}
+
 function Assert-FreePort($Port, $Name) {
     $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($conn) {
@@ -51,6 +93,8 @@ if (-not (Test-Path (Join-Path $backendDir "pom.xml"))) {
 if (-not (Test-Path (Join-Path $frontendDir "package.json"))) {
     throw "frontend/package.json not found"
 }
+
+Use-Jdk21
 
 Assert-FreePort $BackendPort "Backend"
 Assert-FreePort $FrontendPort "Frontend"

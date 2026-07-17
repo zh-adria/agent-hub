@@ -232,6 +232,9 @@
             </tbody>
           </table>
           <div v-if="deliveryEvidence.exportHint" class="notice">{{ deliveryEvidence.exportHint }}</div>
+          <button type="button" class="evidence-download" @click="downloadDeliveryEvidence">
+            下载 JSON
+          </button>
         </div>
         <div>
           <h3>证据端点</h3>
@@ -553,6 +556,19 @@ export default {
       const response = await apiFetch('/api/observability/delivery-evidence');
       this.deliveryEvidence = response.ok ? await response.json() : {};
     },
+    downloadDeliveryEvidence() {
+      const payload = JSON.stringify(this.deliveryEvidence || {}, null, 2);
+      const blob = new Blob([payload], { type: 'application/json' });
+      const link = document.createElement('a');
+      const generatedAt = String(this.deliveryEvidence.generatedAt || new Date().toISOString())
+        .replace(/[:.]/g, '-');
+      link.href = URL.createObjectURL(blob);
+      link.download = `agenthub-delivery-evidence-${generatedAt}.json`;
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(link.href);
+      document.body.removeChild(link);
+    },
     async seedDemoData() {
       if (this.seedBusy) return;
       this.seedBusy = true;
@@ -600,6 +616,7 @@ export default {
         });
         this.seedMessage = '演示数据已生成，交付就绪度已刷新。';
         await this.refreshAll();
+        this.activeTab = 'evidence';
       } catch (error) {
         this.seedMessage = error.message || '演示数据生成失败';
       } finally {
@@ -974,6 +991,9 @@ textarea {
 .notice {
   margin-top: 12px;
   border-style: solid;
+}
+.evidence-download {
+  margin-top: 12px;
 }
 .clip {
   max-width: 420px;
