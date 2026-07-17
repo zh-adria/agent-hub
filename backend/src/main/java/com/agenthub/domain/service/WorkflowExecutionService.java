@@ -45,9 +45,14 @@ public class WorkflowExecutionService {
         topologicalSort(nodes);
         String input = stringValue(payload.get("input"), "");
         TraceEntity trace = traceService.start("workflow:" + workflow.getName(), null, workflow.getId(), toJson(payload));
-        Map<String, String> outputs = new LinkedHashMap<>();
+        Map<String, String> outputs = stringMap(payload.get("outputs"));
         List<Map<String, Object>> stepResponses = new ArrayList<>();
-        Set<String> completed = new LinkedHashSet<>();
+        Set<String> completed = completedFrom(payload.get("checkpoint"));
+        String approvedNodeId = stringValue(payload.get("approvedNodeId"), "");
+        if (!approvedNodeId.isEmpty()) {
+            completed.add(approvedNodeId);
+            outputs.put(approvedNodeId, stringValue(payload.get("approvalInput"), "APPROVED"));
+        }
         String status = "SUCCEEDED";
         Long tenantId = TenantContext.tenantId();
         String externalTenantId = TenantContext.externalTenantId();
@@ -296,6 +301,34 @@ public class WorkflowExecutionService {
                 .collect(Collectors.toList());
         checkpoint.put("pendingNodeIds", pending);
         return checkpoint;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Set<String> completedFrom(Object value) {
+        Set<String> result = new LinkedHashSet<>();
+        if (!(value instanceof Map)) {
+            return result;
+        }
+        Object completed = ((Map<String, Object>) value).get("completedNodeIds");
+        if (completed instanceof List) {
+            for (Object item : (List<Object>) completed) {
+                if (item != null && !String.valueOf(item).trim().isEmpty()) {
+                    result.add(String.valueOf(item));
+                }
+            }
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> stringMap(Object value) {
+        Map<String, String> result = new LinkedHashMap<>();
+        if (value instanceof Map) {
+            for (Map.Entry<String, Object> entry : ((Map<String, Object>) value).entrySet()) {
+                result.put(entry.getKey(), entry.getValue() != null ? String.valueOf(entry.getValue()) : "");
+            }
+        }
+        return result;
     }
 
     private Map<String, Object> errorStep(Node node, Exception ex) {

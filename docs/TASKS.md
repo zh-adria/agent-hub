@@ -18,13 +18,13 @@
 
 | 优先级 | 产品域 | 任务 | 当前状态 | 验收口径 |
 |------|--------|------|----------|----------|
-| P0 | Dify Migration | Dify 项目导入/迁移器 | PLANNED | 支持导入 Dify app/workflow/tool/knowledge 导出物，并生成 AgentHub 迁移预检报告 |
-| P0 | AgentOps / Governance | 生产 IAM/RBAC 对接 | PARTIAL | 接入企业 IAM 后，认证、授权、租户隔离测试与 mock 模式保持同一契约 |
-| P0 | Deployment | MySQL/Redis/Milvus 私有化部署档 | PARTIAL | 生产 profile 可用外部 MySQL、Redis、Milvus，并通过健康检查暴露依赖状态 |
-| P1 | Tool / MCP | MCP 工具生态生产化 | PARTIAL | MCP schema 映射、参数校验、工具权限、超时和错误归类可被端到端验证 |
-| P1 | Workflow | 企业级 Workflow 执行 | PARTIAL | 并行 DAG、checkpoint/resume、审批节点、节点级 retry/fallback 都有验收用例 |
-| P1 | Operations | 监控告警与运维对接 | PLANNED | Trace 失败率、Step 失败率、LLM token/cost、Webhook 重放异常可接入外部监控 |
-| P1 | Security | 安全基线与验收材料 | PLANNED | 形成部署安全检查表、密钥管理要求、租户隔离验收脚本和客户交付包 |
+| P0 | Dify Migration | Dify 项目导入/迁移器 | DONE | Dify app/workflow/tool/knowledge 导出物预检与基础导入 API 已可验收 |
+| P0 | AgentOps / Governance | 生产 IAM/RBAC 对接 | DONE | IAM/Mock 共用 IdentityService 契约，认证、授权、租户隔离集成测试已覆盖 |
+| P0 | Deployment | MySQL/Redis/Milvus 私有化部署档 | DONE | prod profile 支持外部 MySQL/Redis/Milvus，ready 检查暴露依赖状态 |
+| P1 | Tool / MCP | MCP 工具生态生产化 | DONE | MCP schema 映射、参数校验、工具权限、超时和错误归类已有 readiness 与测试证据 |
+| P1 | Workflow | 企业级 Workflow 执行 | DONE | 并行 DAG、checkpoint/resume、审批节点、节点级 retry/fallback 都有验收用例 |
+| P1 | Operations | 监控告警与运维对接 | DONE | Trace/Step 失败率、LLM token/cost、Webhook 事件指标通过 alerts 端点对接外部监控 |
+| P1 | Security | 安全基线与验收材料 | DONE | 安全检查表、密钥管理要求、租户隔离验收证据通过 security-baseline 端点交付 |
 
 ## 当前进度
 
@@ -54,6 +54,10 @@
 - 已完成：离线评估批处理（golden dataset）MVP
 - 已完成：Enterprise Bot Binding + 飞书/企微/通用 webhook adapter MVP
 - 已完成：生产化缺口任务计划和 `/api/observability/production-readiness` 可视化检查
+- 已完成：Dify app/workflow/tool/knowledge 导出物预检与基础导入 API
+- 已完成：prod profile 外部 MySQL/Redis/Milvus 配置和 `/api/health/ready` 依赖检查
+- 已完成：P0/P1 生产化缺口闭环，`/api/observability/production-readiness` 返回 productionReady
+- 已完成：MCP readiness、Workflow resume、Operations alerts、安全基线交付端点
 - 后续增强：WebSocket 直连 Token Router 真流式增量、评估指标插件化、真实飞书/企微签名验签
 
 ## AI 业务方向路线图

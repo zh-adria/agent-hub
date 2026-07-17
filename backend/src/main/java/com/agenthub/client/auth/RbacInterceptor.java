@@ -44,7 +44,7 @@ public class RbacInterceptor implements HandlerInterceptor {
             return "trace:read";
         }
         if (path.startsWith("/api/workflows")) {
-            if (path.endsWith("/execute")) {
+            if (path.endsWith("/execute") || path.endsWith("/resume")) {
                 return "workflow:execute";
             }
             return crudAction("workflow", method, null);
@@ -60,6 +60,9 @@ public class RbacInterceptor implements HandlerInterceptor {
         }
         if (path.startsWith("/api/mcp")) {
             return "function:create";
+        }
+        if (path.startsWith("/api/migrations")) {
+            return "migration:run";
         }
         if (path.startsWith("/api/agents")) {
             if (path.contains("/functions")) {

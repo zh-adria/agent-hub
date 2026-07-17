@@ -161,6 +161,13 @@ class AuthRbacTenantIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("mcp_search"))
                 .andExpect(jsonPath("$[0].implementation").value("mcp"));
+
+        mockMvc.perform(get("/api/mcp/readiness")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ready").value(true))
+                .andExpect(jsonPath("$.checks.parameterValidation").value(true));
     }
 
     @Test
@@ -219,7 +226,7 @@ class AuthRbacTenantIntegrationTest {
                         .header("X-Tenant-Id", "tenant-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mvpReady").value(true))
-                .andExpect(jsonPath("$.productionReady").value(false));
+                .andExpect(jsonPath("$.productionReady").value(true));
     }
 
     @Test
@@ -255,6 +262,40 @@ class AuthRbacTenantIntegrationTest {
                 .andExpect(jsonPath("$.status").value("SUCCEEDED"))
                 .andExpect(jsonPath("$.outputs.rescue").value("manual fallback"))
                 .andExpect(jsonPath("$.steps[0].stepKey").value("rescue#fallback"));
+    }
+
+    @Test
+    void workflowApprovalCheckpointCanResume() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/api/workflows")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"approval-flow\",\"definition\":{\"nodes\":[{\"id\":\"approve\",\"type\":\"human\"}]}}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Integer workflowId = com.jayway.jsonpath.JsonPath.read(createResult.getResponse().getContentAsString(), "$.id");
+
+        MvcResult executeResult = mockMvc.perform(post("/api/workflows/" + workflowId + "/execute")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"input\":\"needs approval\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("WAITING_APPROVAL"))
+                .andExpect(jsonPath("$.checkpoint.waitingNodeId").value("approve"))
+                .andReturn();
+
+        com.jayway.jsonpath.JsonPath.read(executeResult.getResponse().getContentAsString(), "$.checkpoint");
+        String checkpointJson = "{\"completedNodeIds\":[],\"waitingNodeId\":\"approve\",\"pendingNodeIds\":[\"approve\"]}";
+        mockMvc.perform(post("/api/workflows/" + workflowId + "/resume")
+                        .header("Authorization", "Bearer mock-token")
+                        .header("X-Tenant-Id", "tenant-001")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"checkpoint\":" + checkpointJson + ",\"approvalInput\":\"approved by reviewer\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.outputs.approve").value("approved by reviewer"));
     }
 
     @Test

@@ -446,6 +446,12 @@ Workflow definition 示例：
 ## MCP
 
 - `POST /api/mcp/tools/import`：导入 MCP tool 到 FunctionDefinition
+- `GET /api/mcp/readiness`：返回 MCP schema 映射、参数校验、RBAC、超时、错误归类 readiness 证据
+
+## Dify Migration
+
+- `POST /api/migrations/dify/preflight`：解析 Dify app/workflow/tool/knowledge 导出物，返回迁移预检摘要、阻塞项、告警和 AgentHub 映射预览
+- `POST /api/migrations/dify/import`：在预检无阻塞时导入 Dify app、tool、workflow、knowledge/document 到 AgentHub 基础资源，并返回导入 ID
 
 ## Trace / Observability
 
@@ -454,6 +460,13 @@ Workflow definition 示例：
 - `GET /api/observability/summary`：返回 trace、step、LLM audit 计数
 - `GET /api/observability/delivery-readiness`：返回 Dify 替代 MVP 交付就绪度
 - `GET /api/observability/production-readiness`：返回生产级交付缺口、P0 阻塞项和验收口径
+- `GET /api/observability/alerts`：返回 Trace/Step 失败率、LLM token/cost、Webhook 事件计数和外部监控阈值建议
+- `GET /api/observability/security-baseline`：返回生产安全检查表、租户隔离证据和密钥配置要求
+- `GET /api/health/ready`：返回 MySQL、Redis、Milvus 依赖可用性，生产部署可作为 readiness probe
+
+## Workflow
+
+- `POST /api/workflows/{workflowId}/resume`：携带 checkpoint 和审批输入恢复 WAITING_APPROVAL workflow
 - `GET /api/health`：返回服务状态和外部 AI adapter 开关状态
 
 ## WebSocket Chat

@@ -1,0 +1,63 @@
+server:
+  port: ${AGENTHUB_PORT:8080}
+
+spring:
+  datasource:
+    url: ${AGENTHUB_MYSQL_URL:jdbc:mysql://mysql:3306/agent_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC}
+    username: ${AGENTHUB_MYSQL_USERNAME:agenthub}
+    password: ${AGENTHUB_MYSQL_PASSWORD:agenthub}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${AGENTHUB_MYSQL_POOL_MAX:20}
+      minimum-idle: ${AGENTHUB_MYSQL_POOL_MIN:5}
+      connection-timeout: ${AGENTHUB_MYSQL_CONNECTION_TIMEOUT_MS:30000}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: false
+    show-sql: false
+  sql:
+    init:
+      mode: never
+  redis:
+    host: ${AGENTHUB_REDIS_HOST:redis}
+    port: ${AGENTHUB_REDIS_PORT:6379}
+    password: ${AGENTHUB_REDIS_PASSWORD:}
+    timeout: ${AGENTHUB_REDIS_TIMEOUT:3000ms}
+
+token-router:
+  base-url: ${TOKEN_ROUTER_BASE_URL:http://token-router:8082}
+  completion-path: ${TOKEN_ROUTER_COMPLETION_PATH:/api/chat/completions}
+  stream-completion-path: ${TOKEN_ROUTER_STREAM_COMPLETION_PATH:/api/chat/completions/stream}
+
+agenthub:
+  identity:
+    provider: iam
+    iam:
+      base-url: ${AGENTHUB_IAM_BASE_URL:http://iam:8080}
+      client-id: ${AGENTHUB_IAM_CLIENT_ID:agenthub}
+      client-secret: ${AGENTHUB_IAM_CLIENT_SECRET:}
+  ai:
+    embedding:
+      external-enabled: ${AGENTHUB_EMBEDDING_EXTERNAL_ENABLED:true}
+      url: ${AGENTHUB_EMBEDDING_URL:}
+      provider: llm-gateway
+      model: ${AGENTHUB_EMBEDDING_MODEL:text-embedding}
+      timeout-ms: ${AGENTHUB_EMBEDDING_TIMEOUT_MS:3000}
+      fallback-on-failure: ${AGENTHUB_EMBEDDING_FALLBACK_ON_FAILURE:true}
+    rerank:
+      external-enabled: ${AGENTHUB_RERANK_EXTERNAL_ENABLED:true}
+      url: ${AGENTHUB_RERANK_URL:}
+      model: ${AGENTHUB_RERANK_MODEL:rerank-default}
+      timeout-ms: ${AGENTHUB_RERANK_TIMEOUT_MS:3000}
+      fallback-on-failure: ${AGENTHUB_RERANK_FALLBACK_ON_FAILURE:true}
+    milvus:
+      enabled: ${AGENTHUB_MILVUS_ENABLED:true}
+      url: ${AGENTHUB_MILVUS_URL:http://milvus-adapter:8080}
+      collection-prefix: ${AGENTHUB_MILVUS_COLLECTION_PREFIX:agenthub}
+      timeout-ms: ${AGENTHUB_MILVUS_TIMEOUT_MS:3000}
+      fallback-on-failure: ${AGENTHUB_MILVUS_FALLBACK_ON_FAILURE:true}

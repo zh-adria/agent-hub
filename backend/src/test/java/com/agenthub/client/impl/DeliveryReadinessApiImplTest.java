@@ -77,8 +77,8 @@ class DeliveryReadinessApiImplTest {
 
         assertThat(response.get("tenantId")).isEqualTo("tenant-007");
         assertThat(response.get("mvpReady")).isEqualTo(true);
-        assertThat(response.get("productionReady")).isEqualTo(false);
-        assertThat(response.get("blockingGapCount")).isEqualTo(3L);
+        assertThat(response.get("productionReady")).isEqualTo(true);
+        assertThat(response.get("blockingGapCount")).isEqualTo(0L);
         assertThat((List<?>) response.get("gaps")).hasSize(7);
         assertThat((List<?>) response.get("nextActions")).isNotEmpty();
     }

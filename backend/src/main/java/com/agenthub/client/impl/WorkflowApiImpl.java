@@ -80,6 +80,22 @@ public class WorkflowApiImpl {
         return workflowExecutionService.execute(workflow, payload);
     }
 
+    @PostMapping("/{workflowId}/resume")
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> resume(@PathVariable Long workflowId, @RequestBody Map<String, Object> payload) {
+        WorkflowDefinitionEntity workflow = workflowRepository.findByIdAndTenantId(workflowId, TenantContext.tenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Workflow not found: " + workflowId));
+        Map<String, Object> resumePayload = new LinkedHashMap<>(payload);
+        Object checkpoint = payload.get("checkpoint");
+        if (checkpoint instanceof Map && !resumePayload.containsKey("approvedNodeId")) {
+            Object waitingNodeId = ((Map<String, Object>) checkpoint).get("waitingNodeId");
+            if (waitingNodeId != null) {
+                resumePayload.put("approvedNodeId", String.valueOf(waitingNodeId));
+            }
+        }
+        return workflowExecutionService.execute(workflow, resumePayload);
+    }
+
     private Map<String, Object> map(WorkflowDefinitionEntity entity) {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("id", entity.getId());

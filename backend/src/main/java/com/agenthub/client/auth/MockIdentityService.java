@@ -116,6 +116,7 @@ public class MockIdentityService implements IdentityService {
                 "session:create", "session:read", "session:message", "session:delete",
                 "knowledge:create", "knowledge:read", "knowledge:update", "knowledge:delete", "knowledge:search",
                 "workflow:create", "workflow:read", "workflow:update", "workflow:delete", "workflow:execute",
+                "migration:run",
                 "evaluation:read", "evaluation:run",
                 "bot:create", "bot:read", "bot:update", "bot:delete",
                 "trace:read",

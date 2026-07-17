@@ -75,7 +75,7 @@ public class JpaFunctionRepository implements FunctionRepository {
         entity.setMethod(domain.getMethod() != null ? domain.getMethod() : "GET");
         entity.setImplementation(domain.getImplementation());
         entity.setParameters(domain.getParameters());
-        entity.setTimeoutMs(entity.getTimeoutMs() != null ? entity.getTimeoutMs() : 30000);
+        entity.setTimeoutMs(domain.getTimeoutMs() != null ? domain.getTimeoutMs() : 30000);
         entity.setStatus(1);
         if (entity.getCreatedBy() == null) {
             entity.setCreatedBy(TenantContext.userId());

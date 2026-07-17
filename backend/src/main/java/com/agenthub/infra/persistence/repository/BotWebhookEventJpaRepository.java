@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface BotWebhookEventJpaRepository extends JpaRepository<BotWebhookEventEntity, Long> {
     Optional<BotWebhookEventEntity> findByTenantIdAndChannelAndMessageId(Long tenantId, String channel, String messageId);
+    long countByTenantId(Long tenantId);
 }
