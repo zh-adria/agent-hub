@@ -32,6 +32,14 @@ token-router:
 agenthub:
   identity:
     provider: mock
+    logto:
+      issuer: https://your-tenant.logto.app
+      client-id: ""
+      client-secret: ""
+      expected-audience: ""
+      enable-userinfo-fallback: true
+      fallback-to-scope-only: false
+      jwks-cache-ttl-ms: 3600000
     iam:
       base-url: http://127.0.0.1:8080/iam
       client-id: demo-client

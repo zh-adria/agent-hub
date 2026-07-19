@@ -62,6 +62,8 @@ public class RequestContextFilter extends OncePerRequestFilter {
                 || path.startsWith("/ws/")
                 || path.startsWith("/mock")
                 || path.equals("/api/auth/login")
+                || path.equals("/api/auth/logout")
+                || path.startsWith("/api/auth/logto/")
                 || path.equals("/api/health")
                 || path.startsWith("/api/health/");
     }

@@ -56,6 +56,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- OIDC / Logto: JWT validation (no Spring Security required) -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.37.2</version>
+        </dependency>
+
         <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
