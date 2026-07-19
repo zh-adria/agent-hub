@@ -5,6 +5,7 @@ import com.agenthub.domain.model.Message;
 import com.agenthub.domain.model.Session;
 import com.agenthub.domain.port.FunctionRegistry;
 import com.agenthub.domain.port.LLMClient;
+import com.agenthub.domain.service.SessionContextCompressor;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -25,12 +26,14 @@ class ReActEngineTest {
     void executesStructuredToolCallThenFinalAnswer() {
         LLMClient llmClient = mock(LLMClient.class);
         FunctionRegistry functionRegistry = mock(FunctionRegistry.class);
-        ReActEngine engine = new ReActEngine(llmClient, functionRegistry);
+        SessionContextCompressor compressor = mock(SessionContextCompressor.class);
+        ReActEngine engine = new ReActEngine(llmClient, functionRegistry, compressor);
         when(llmClient.reason(any(Agent.class), any(List.class)))
                 .thenReturn("{\"toolCall\":{\"name\":\"lookup\",\"arguments\":{\"q\":\"agent\"}}}")
                 .thenReturn("READY");
         when(functionRegistry.invoke(any(String.class), any(Map.class))).thenReturn(Collections.singletonMap("answer", "42"));
         when(llmClient.generateFinalAnswer(any(Agent.class), any(List.class))).thenReturn("done");
+        when(compressor.estimateTotalTokens(any(List.class))).thenReturn(100); // Below budget, no compression
 
         Agent agent = new Agent();
         agent.setMaxIterations(3);
@@ -45,7 +48,9 @@ class ReActEngineTest {
         List<Message> messages = engine.executeReActLoop(agent, session, user);
 
         assertEquals("done", messages.get(messages.size() - 1).getContent());
-        assertTrue(messages.stream().anyMatch(message -> message.getContent() != null && message.getContent().contains("Function lookup returned")));
+        // Structured tool call protocol produces [ToolResult] messages
+        assertTrue(messages.stream().anyMatch(message -> message.getContent() != null && message.getContent().contains("[ToolResult]")));
+        assertTrue(messages.stream().anyMatch(message -> message.getContent() != null && message.getContent().contains("lookup")));
         Map<String, Object> expected = new LinkedHashMap<>();
         expected.put("q", "agent");
         verify(functionRegistry).invoke("lookup", expected);

@@ -11,6 +11,8 @@ public class Agent {
     private Integer maxTokens;
     private Integer maxIterations;
     private String functionIds;
+    private Integer toolTimeoutMs;
+    private String errorHandlingMode;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -32,4 +34,8 @@ public class Agent {
     public void setMaxIterations(Integer maxIterations) { this.maxIterations = maxIterations; }
     public String getFunctionIds() { return functionIds; }
     public void setFunctionIds(String functionIds) { this.functionIds = functionIds; }
+    public Integer getToolTimeoutMs() { return toolTimeoutMs; }
+    public void setToolTimeoutMs(Integer toolTimeoutMs) { this.toolTimeoutMs = toolTimeoutMs; }
+    public String getErrorHandlingMode() { return errorHandlingMode; }
+    public void setErrorHandlingMode(String errorHandlingMode) { this.errorHandlingMode = errorHandlingMode; }
 }
