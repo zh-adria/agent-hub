@@ -56,11 +56,16 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
-        <!-- OIDC / Logto: JWT validation (no Spring Security required) -->
+        <!-- Sa-Token: SSO authentication & permission framework -->
         <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>9.37.2</version>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-spring-boot-starter</artifactId>
+            <version>1.37.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-redis-jackson</artifactId>
+            <version>1.37.0</version>
         </dependency>
 
         <!-- Jasypt: Spring Boot property encryption -->

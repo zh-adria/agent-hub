@@ -40,6 +40,16 @@ jasypt:
   encryptor:
     password: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
 
+# Sa-Token
+sa-token:
+  token-name: satoken
+  timeout: 7200
+  active-timeout: 0
+  is-concurrent: true
+  is-read-cookie: false
+  is-read-header: true
+  is-log: false
+
 agenthub:
   identity:
     provider: mock

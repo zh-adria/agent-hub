@@ -31,21 +31,22 @@ jasypt:
   encryptor:
     password: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
 
+# Sa-Token
+sa-token:
+  token-name: satoken
+  timeout: 7200
+  active-timeout: 0
+  is-concurrent: true
+  is-read-cookie: false
+  is-read-header: true
+  is-log: false
+
 agenthub:
   db:
     encryption:
       key: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
   identity:
-    provider: logto
-    logto:
-      issuer: ${AGENTHUB_LOGTO_ISSUER:https://your-tenant.logto.app}
-      client-id: ${AGENTHUB_LOGTO_CLIENT_ID:}
-      client-secret: ${AGENTHUB_LOGTO_CLIENT_SECRET:}
-      expected-audience: ${AGENTHUB_LOGTO_EXPECTED_AUDIENCE:}
-      enable-userinfo-fallback: true
-      fallback-to-scope-only: false
-      jwks-cache-ttl-ms: 3600000
-      management-api-base-url: ${AGENTHUB_LOGTO_MGMT_API:}
+    provider: sa-token
   ai:
     embedding:
       external-enabled: true
