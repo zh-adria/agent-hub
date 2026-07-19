@@ -91,7 +91,9 @@ CREATE TABLE IF NOT EXISTS function_definition (
     headers JSON COMMENT 'HTTP headers',
     auth_config JSON COMMENT 'auth config',
     timeout_ms INT DEFAULT 30000,
-    retry_policy JSON COMMENT 'retry config',
+    retry_policy JSON COMMENT 'retry config: maxAttempts, waitDurationMs',
+    circuit_breaker_policy JSON COMMENT 'circuit breaker config: failureRateThreshold, waitDurationInOpenStateMs',
+    fallback_response TEXT COMMENT 'fallback response when all retries exhausted',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '1:active, 0:disabled',
     created_by VARCHAR(64) NOT NULL,
     updated_by VARCHAR(64) NOT NULL,
@@ -493,3 +495,20 @@ CREATE TABLE IF NOT EXISTS bot_webhook_event (
     FOREIGN KEY (tenant_id) REFERENCES tenant(id),
     FOREIGN KEY (binding_id) REFERENCES bot_binding(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Bot webhook idempotency event';
+
+-- Dify migration result table
+CREATE TABLE IF NOT EXISTS dify_migration_result (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    tenant_id BIGINT NOT NULL,
+    source_name VARCHAR(255) COMMENT 'original Dify resource name',
+    status VARCHAR(32) NOT NULL COMMENT 'SUCCEEDED/FAILED',
+    target_type VARCHAR(64) COMMENT 'Agent/FunctionDefinition/WorkflowDefinition/KnowledgeBase',
+    source_type VARCHAR(64) COMMENT 'dify-app/dify-tool/dify-workflow/dify-knowledge',
+    error_message TEXT COMMENT 'error details if failed',
+    mapping_detail JSON COMMENT 'full mapping metadata',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_dify_result_tenant (tenant_id),
+    INDEX idx_dify_result_status (status),
+    INDEX idx_dify_result_created (created_at),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Dify migration import result';

@@ -1,13 +1,16 @@
 package com.agenthub.client.impl;
 
+import com.agenthub.client.audit.LLMUsageAuditService;
 import com.agenthub.domain.context.TenantContext;
 import com.agenthub.infra.persistence.repository.AgentJpaRepository;
 import com.agenthub.infra.persistence.repository.BotBindingJpaRepository;
 import com.agenthub.infra.persistence.repository.FunctionDefinitionJpaRepository;
 import com.agenthub.infra.persistence.repository.KnowledgeBaseJpaRepository;
+import com.agenthub.infra.persistence.repository.LLMUsageAuditJpaRepository;
 import com.agenthub.infra.persistence.repository.StepRecordJpaRepository;
 import com.agenthub.infra.persistence.repository.TraceJpaRepository;
 import com.agenthub.infra.persistence.repository.WorkflowDefinitionJpaRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +39,9 @@ class DeliveryReadinessApiImplTest {
         TraceJpaRepository traceRepository = mock(TraceJpaRepository.class);
         StepRecordJpaRepository stepRecordRepository = mock(StepRecordJpaRepository.class);
         BotBindingJpaRepository botBindingRepository = mock(BotBindingJpaRepository.class);
+        LLMUsageAuditService auditService = mock(LLMUsageAuditService.class);
+        LLMUsageAuditJpaRepository auditRepository = mock(LLMUsageAuditJpaRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         when(agentRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
         when(functionRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
         when(knowledgeBaseRepository.findByTenantId(7L)).thenReturn(Collections.emptyList());
@@ -50,7 +56,10 @@ class DeliveryReadinessApiImplTest {
                 workflowRepository,
                 traceRepository,
                 stepRecordRepository,
-                botBindingRepository);
+                botBindingRepository,
+                auditService,
+                auditRepository,
+                objectMapper);
 
         Map<String, Object> response = api.deliveryReadiness();
 
@@ -71,7 +80,10 @@ class DeliveryReadinessApiImplTest {
                 mock(WorkflowDefinitionJpaRepository.class),
                 mock(TraceJpaRepository.class),
                 mock(StepRecordJpaRepository.class),
-                mock(BotBindingJpaRepository.class));
+                mock(BotBindingJpaRepository.class),
+                mock(LLMUsageAuditService.class),
+                mock(LLMUsageAuditJpaRepository.class),
+                new ObjectMapper());
 
         Map<String, Object> response = api.productionReadiness();
 
@@ -93,6 +105,9 @@ class DeliveryReadinessApiImplTest {
         TraceJpaRepository traceRepository = mock(TraceJpaRepository.class);
         StepRecordJpaRepository stepRecordRepository = mock(StepRecordJpaRepository.class);
         BotBindingJpaRepository botBindingRepository = mock(BotBindingJpaRepository.class);
+        LLMUsageAuditService auditService = mock(LLMUsageAuditService.class);
+        LLMUsageAuditJpaRepository auditRepository = mock(LLMUsageAuditJpaRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
         when(agentRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
         when(functionRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
         when(knowledgeBaseRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
@@ -100,6 +115,7 @@ class DeliveryReadinessApiImplTest {
         when(traceRepository.findByTenantIdOrderByStartedAtDesc(7L)).thenReturn(Collections.singletonList(null));
         when(stepRecordRepository.countByTenantId(7L)).thenReturn(1L);
         when(botBindingRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
+        when(auditRepository.findByTenantIdOrderByCreatedAtDesc(7L)).thenReturn(Collections.emptyList());
         DeliveryReadinessApiImpl api = new DeliveryReadinessApiImpl(
                 agentRepository,
                 functionRepository,
@@ -107,7 +123,10 @@ class DeliveryReadinessApiImplTest {
                 workflowRepository,
                 traceRepository,
                 stepRecordRepository,
-                botBindingRepository);
+                botBindingRepository,
+                auditService,
+                auditRepository,
+                objectMapper);
 
         Map<String, Object> response = api.deliveryEvidence();
 
@@ -118,5 +137,46 @@ class DeliveryReadinessApiImplTest {
         assertThat(deliveryReadiness.get("readyCount")).isEqualTo(7L);
         assertThat(productionReadiness.get("productionReady")).isEqualTo(true);
         assertThat((List<?>) response.get("evidence")).hasSize(5);
+    }
+
+    @Test
+    void exportDeliveryEvidenceReturnsZipBytes() throws Exception {
+        TenantContext.set(7L, "tenant-007", "user-1");
+        AgentJpaRepository agentRepository = mock(AgentJpaRepository.class);
+        FunctionDefinitionJpaRepository functionRepository = mock(FunctionDefinitionJpaRepository.class);
+        KnowledgeBaseJpaRepository knowledgeBaseRepository = mock(KnowledgeBaseJpaRepository.class);
+        WorkflowDefinitionJpaRepository workflowRepository = mock(WorkflowDefinitionJpaRepository.class);
+        TraceJpaRepository traceRepository = mock(TraceJpaRepository.class);
+        StepRecordJpaRepository stepRecordRepository = mock(StepRecordJpaRepository.class);
+        BotBindingJpaRepository botBindingRepository = mock(BotBindingJpaRepository.class);
+        LLMUsageAuditService auditService = mock(LLMUsageAuditService.class);
+        LLMUsageAuditJpaRepository auditRepository = mock(LLMUsageAuditJpaRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        when(agentRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
+        when(functionRepository.findByTenantId(7L)).thenReturn(Collections.singletonList(null));
+        when(knowledgeBaseRepository.findByTenantId(7L)).thenReturn(Collections.emptyList());
+        when(workflowRepository.findByTenantId(7L)).thenReturn(Collections.emptyList());
+        when(traceRepository.findByTenantIdOrderByStartedAtDesc(7L)).thenReturn(Collections.emptyList());
+        when(stepRecordRepository.countByTenantId(7L)).thenReturn(0L);
+        when(botBindingRepository.findByTenantId(7L)).thenReturn(Collections.emptyList());
+        when(auditRepository.findByTenantIdOrderByCreatedAtDesc(7L)).thenReturn(Collections.emptyList());
+        DeliveryReadinessApiImpl api = new DeliveryReadinessApiImpl(
+                agentRepository,
+                functionRepository,
+                knowledgeBaseRepository,
+                workflowRepository,
+                traceRepository,
+                stepRecordRepository,
+                botBindingRepository,
+                auditService,
+                auditRepository,
+                objectMapper);
+
+        var response = api.exportDeliveryEvidence();
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().length).isGreaterThan(0);
     }
 }

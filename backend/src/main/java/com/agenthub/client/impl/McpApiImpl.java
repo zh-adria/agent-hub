@@ -3,6 +3,7 @@ package com.agenthub.client.impl;
 import com.agenthub.domain.context.TenantContext;
 import com.agenthub.domain.model.FunctionDefinition;
 import com.agenthub.domain.service.FunctionRegistryService;
+import com.agenthub.domain.service.SpringAiMcpAdapter;
 import com.agenthub.infra.persistence.repository.FunctionDefinitionJpaRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
@@ -18,17 +19,29 @@ public class McpApiImpl {
     private final FunctionRegistryService functionRegistryService;
     private final FunctionDefinitionJpaRepository functionRepository;
     private final ObjectMapper objectMapper;
+    private final SpringAiMcpAdapter springAiMcpAdapter;
 
     public McpApiImpl(FunctionRegistryService functionRegistryService,
                       FunctionDefinitionJpaRepository functionRepository,
-                      ObjectMapper objectMapper) {
+                      ObjectMapper objectMapper,
+                      SpringAiMcpAdapter springAiMcpAdapter) {
         this.functionRegistryService = functionRegistryService;
         this.functionRepository = functionRepository;
         this.objectMapper = objectMapper;
+        this.springAiMcpAdapter = springAiMcpAdapter;
     }
 
     @PostMapping("/tools/import")
     public List<Map<String, Object>> importTools(@RequestBody Map<String, Object> payload) {
+        // If Spring AI MCP is available and payload contains serverUrl, use it
+        if (springAiMcpAdapter.isAvailable() && payload.containsKey("serverUrl")) {
+            String serverUrl = String.valueOf(payload.get("serverUrl"));
+            List<FunctionDefinition> imported = springAiMcpAdapter.importMcpTools(
+                    serverUrl, TenantContext.externalTenantId(), TenantContext.userId());
+            return imported.stream().map(this::map).toList();
+        }
+
+        // Fallback: direct tool list import (original behavior)
         List<Map<String, Object>> imported = new ArrayList<>();
         for (Map<String, Object> tool : tools(payload)) {
             FunctionDefinition function = new FunctionDefinition();
@@ -85,6 +98,10 @@ public class McpApiImpl {
         response.put("method", function.getMethod());
         response.put("parameters", readValue(function.getParameters()));
         response.put("implementation", function.getImplementation());
+        response.put("timeoutMs", function.getTimeoutMs());
+        response.put("retryPolicy", function.getRetryPolicy());
+        response.put("circuitBreakerPolicy", function.getCircuitBreakerPolicy());
+        response.put("fallbackResponse", function.getFallbackResponse());
         return response;
     }
 

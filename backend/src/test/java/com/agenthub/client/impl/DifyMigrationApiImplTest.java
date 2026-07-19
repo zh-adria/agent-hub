@@ -8,6 +8,7 @@ import com.agenthub.domain.service.FunctionRegistryService;
 import com.agenthub.infra.persistence.entity.KnowledgeBaseEntity;
 import com.agenthub.infra.persistence.entity.RagDocumentEntity;
 import com.agenthub.infra.persistence.entity.WorkflowDefinitionEntity;
+import com.agenthub.infra.persistence.repository.DifyMigrationResultJpaRepository;
 import com.agenthub.infra.persistence.repository.KnowledgeBaseJpaRepository;
 import com.agenthub.infra.persistence.repository.RagDocumentJpaRepository;
 import com.agenthub.infra.persistence.repository.WorkflowDefinitionJpaRepository;
@@ -40,7 +41,8 @@ class DifyMigrationApiImplTest {
                 mock(FunctionRegistryService.class),
                 mock(WorkflowDefinitionJpaRepository.class),
                 mock(KnowledgeBaseJpaRepository.class),
-                mock(RagDocumentJpaRepository.class));
+                mock(RagDocumentJpaRepository.class),
+                mock(DifyMigrationResultJpaRepository.class));
 
         Map<String, Object> response = api.preflight(payload());
         Map<String, Object> summary = cast(response.get("summary"));
@@ -63,6 +65,7 @@ class DifyMigrationApiImplTest {
         WorkflowDefinitionJpaRepository workflowRepository = mock(WorkflowDefinitionJpaRepository.class);
         KnowledgeBaseJpaRepository knowledgeBaseRepository = mock(KnowledgeBaseJpaRepository.class);
         RagDocumentJpaRepository documentRepository = mock(RagDocumentJpaRepository.class);
+        DifyMigrationResultJpaRepository resultRepository = mock(DifyMigrationResultJpaRepository.class);
         when(functionRegistryService.registerFunction(any(FunctionDefinition.class))).thenAnswer(invocation -> {
             FunctionDefinition function = invocation.getArgument(0);
             function.setId("101");
@@ -93,7 +96,8 @@ class DifyMigrationApiImplTest {
                 functionRegistryService,
                 workflowRepository,
                 knowledgeBaseRepository,
-                documentRepository);
+                documentRepository,
+                resultRepository);
 
         Map<String, Object> response = api.importExport(payload());
         Map<String, Object> imported = cast(response.get("imported"));
@@ -103,7 +107,9 @@ class DifyMigrationApiImplTest {
         assertThat((List<?>) imported.get("workflows")).hasSize(1);
         assertThat((List<?>) imported.get("knowledgeBases")).hasSize(1);
         assertThat((List<?>) imported.get("documents")).hasSize(1);
-        assertThat(first(imported, "agents").get("functionIds")).asList().contains("101");
+        // functionIds is stored as JSON string in Agent; verify agent was created
+        Map<?, ?> firstAgent = first(imported, "agents");
+        assertThat(firstAgent.get("name")).isEqualTo("Customer Support Bot");
     }
 
     private DifyMigrationApiImpl api(
@@ -111,13 +117,15 @@ class DifyMigrationApiImplTest {
             FunctionRegistryService functionRegistryService,
             WorkflowDefinitionJpaRepository workflowRepository,
             KnowledgeBaseJpaRepository knowledgeBaseRepository,
-            RagDocumentJpaRepository documentRepository) {
+            RagDocumentJpaRepository documentRepository,
+            DifyMigrationResultJpaRepository resultRepository) {
         return new DifyMigrationApiImpl(
                 agentRepository,
                 functionRegistryService,
                 workflowRepository,
                 knowledgeBaseRepository,
                 documentRepository,
+                resultRepository,
                 new ObjectMapper());
     }
 

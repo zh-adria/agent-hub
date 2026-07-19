@@ -118,6 +118,9 @@ public class FunctionApiImpl implements FunctionApi {
         }
         function.setImplementation((String) config.get("implementation"));
         function.setOwnerId(config.containsKey("ownerId") ? (String) config.get("ownerId") : "system");
+        function.setRetryPolicy((String) config.get("retryPolicy"));
+        function.setCircuitBreakerPolicy((String) config.get("circuitBreakerPolicy"));
+        function.setFallbackResponse((String) config.get("fallbackResponse"));
         return function;
     }
 
@@ -132,6 +135,9 @@ public class FunctionApiImpl implements FunctionApi {
         response.put("timeoutMs", function.getTimeoutMs());
         response.put("implementation", function.getImplementation());
         response.put("ownerId", function.getOwnerId());
+        response.put("retryPolicy", function.getRetryPolicy());
+        response.put("circuitBreakerPolicy", function.getCircuitBreakerPolicy());
+        response.put("fallbackResponse", function.getFallbackResponse());
         return response;
     }
 

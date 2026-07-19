@@ -10,6 +10,9 @@ public class FunctionDefinition {
     private Integer timeoutMs;
     private String implementation;
     private String ownerId;
+    private String retryPolicy;
+    private String circuitBreakerPolicy;
+    private String fallbackResponse;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -29,4 +32,10 @@ public class FunctionDefinition {
     public void setImplementation(String implementation) { this.implementation = implementation; }
     public String getOwnerId() { return ownerId; }
     public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+    public String getRetryPolicy() { return retryPolicy; }
+    public void setRetryPolicy(String retryPolicy) { this.retryPolicy = retryPolicy; }
+    public String getCircuitBreakerPolicy() { return circuitBreakerPolicy; }
+    public void setCircuitBreakerPolicy(String circuitBreakerPolicy) { this.circuitBreakerPolicy = circuitBreakerPolicy; }
+    public String getFallbackResponse() { return fallbackResponse; }
+    public void setFallbackResponse(String fallbackResponse) { this.fallbackResponse = fallbackResponse; }
 }

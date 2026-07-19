@@ -48,6 +48,12 @@ public class FunctionDefinitionEntity {
     @Column(name = "retry_policy", columnDefinition = "JSON")
     private String retryPolicy;
 
+    @Column(name = "circuit_breaker_policy", columnDefinition = "JSON")
+    private String circuitBreakerPolicy;
+
+    @Column(name = "fallback_response", columnDefinition = "TEXT")
+    private String fallbackResponse;
+
     @Column(name = "status", nullable = false)
     private Integer status = 1;
 
@@ -101,6 +107,10 @@ public class FunctionDefinitionEntity {
     public void setTimeoutMs(Integer timeoutMs) { this.timeoutMs = timeoutMs; }
     public String getRetryPolicy() { return retryPolicy; }
     public void setRetryPolicy(String retryPolicy) { this.retryPolicy = retryPolicy; }
+    public String getCircuitBreakerPolicy() { return circuitBreakerPolicy; }
+    public void setCircuitBreakerPolicy(String circuitBreakerPolicy) { this.circuitBreakerPolicy = circuitBreakerPolicy; }
+    public String getFallbackResponse() { return fallbackResponse; }
+    public void setFallbackResponse(String fallbackResponse) { this.fallbackResponse = fallbackResponse; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
     public String getCreatedBy() { return createdBy; }

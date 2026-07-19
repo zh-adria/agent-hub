@@ -5,14 +5,17 @@ import com.agenthub.domain.model.Agent;
 import com.agenthub.domain.model.FunctionDefinition;
 import com.agenthub.domain.repository.AgentRepository;
 import com.agenthub.domain.service.FunctionRegistryService;
+import com.agenthub.infra.persistence.entity.DifyMigrationResultEntity;
 import com.agenthub.infra.persistence.entity.KnowledgeBaseEntity;
 import com.agenthub.infra.persistence.entity.RagDocumentEntity;
 import com.agenthub.infra.persistence.entity.WorkflowDefinitionEntity;
+import com.agenthub.infra.persistence.repository.DifyMigrationResultJpaRepository;
 import com.agenthub.infra.persistence.repository.KnowledgeBaseJpaRepository;
 import com.agenthub.infra.persistence.repository.RagDocumentJpaRepository;
 import com.agenthub.infra.persistence.repository.WorkflowDefinitionJpaRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +36,7 @@ public class DifyMigrationApiImpl {
     private final WorkflowDefinitionJpaRepository workflowRepository;
     private final KnowledgeBaseJpaRepository knowledgeBaseRepository;
     private final RagDocumentJpaRepository documentRepository;
+    private final DifyMigrationResultJpaRepository resultRepository;
     private final ObjectMapper objectMapper;
 
     public DifyMigrationApiImpl(
@@ -41,12 +45,14 @@ public class DifyMigrationApiImpl {
             WorkflowDefinitionJpaRepository workflowRepository,
             KnowledgeBaseJpaRepository knowledgeBaseRepository,
             RagDocumentJpaRepository documentRepository,
+            DifyMigrationResultJpaRepository resultRepository,
             ObjectMapper objectMapper) {
         this.agentRepository = agentRepository;
         this.functionRegistryService = functionRegistryService;
         this.workflowRepository = workflowRepository;
         this.knowledgeBaseRepository = knowledgeBaseRepository;
         this.documentRepository = documentRepository;
+        this.resultRepository = resultRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -68,6 +74,9 @@ public class DifyMigrationApiImpl {
         List<Map<String, Object>> importedWorkflows = importWorkflows(workflows(payload));
         Map<String, List<Map<String, Object>>> importedKnowledge = importKnowledgeBases(knowledgeBases(payload));
 
+        // Persist import results for visualization
+        saveMigrationResults(payload, preflight, importedFunctions, importedAgents, importedWorkflows, importedKnowledge);
+
         Map<String, Object> imported = new LinkedHashMap<>();
         imported.put("agents", importedAgents);
         imported.put("functions", importedFunctions);
@@ -83,6 +92,90 @@ public class DifyMigrationApiImpl {
         return response;
     }
 
+    @GetMapping("/results")
+    public List<Map<String, Object>> listResults() {
+        long tenantId = TenantContext.tenantId();
+        return resultRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
+                .map(this::mapResult).toList();
+    }
+
+    private void saveMigrationResults(
+            Map<String, Object> payload,
+            Map<String, Object> preflight,
+            List<Map<String, Object>> importedFunctions,
+            List<Map<String, Object>> importedAgents,
+            List<Map<String, Object>> importedWorkflows,
+            Map<String, List<Map<String, Object>>> importedKnowledge) {
+        long tenantId = TenantContext.tenantId();
+        Object mappingsObj = preflight.get("mappings");
+        if (!(mappingsObj instanceof List<?> rawMappings)) {
+            return;
+        }
+        List<Map<String, Object>> mappings = new ArrayList<>();
+        for (Object item : rawMappings) {
+            if (item instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> map = (Map<String, Object>) item;
+                mappings.add(map);
+            }
+        }
+        if (mappings.isEmpty()) {
+            return;
+        }
+
+        if (mappings != null) {
+            for (Map<String, Object> mapping : mappings) {
+                DifyMigrationResultEntity entity = new DifyMigrationResultEntity();
+                entity.setTenantId(tenantId);
+                entity.setSourceName(text(mapping.get("sourceName")));
+                entity.setStatus("READY".equals(mapping.get("status")) ? "SUCCEEDED" : "FAILED");
+                entity.setTargetType(text(mapping.get("targetType")));
+                entity.setSourceType("dify");
+                entity.setMappingDetail(json(mapping));
+                if (!"READY".equals(mapping.get("status"))) {
+                    entity.setErrorMessage("Missing name or blocked by preflight check");
+                }
+                resultRepository.save(entity);
+            }
+        }
+
+        // Save agent-level results
+        for (Map<String, Object> agent : importedAgents) {
+            DifyMigrationResultEntity entity = new DifyMigrationResultEntity();
+            entity.setTenantId(tenantId);
+            entity.setSourceName(text(agent.get("name")));
+            entity.setStatus("SUCCEEDED");
+            entity.setTargetType("Agent");
+            entity.setSourceType("dify-app");
+            entity.setMappingDetail(json(agent));
+            resultRepository.save(entity);
+        }
+
+        // Save function-level results
+        for (Map<String, Object> func : importedFunctions) {
+            DifyMigrationResultEntity entity = new DifyMigrationResultEntity();
+            entity.setTenantId(tenantId);
+            entity.setSourceName(text(func.get("name")));
+            entity.setStatus("SUCCEEDED");
+            entity.setTargetType("FunctionDefinition");
+            entity.setSourceType("dify-tool");
+            entity.setMappingDetail(json(func));
+            resultRepository.save(entity);
+        }
+
+        // Save workflow-level results
+        for (Map<String, Object> wf : importedWorkflows) {
+            DifyMigrationResultEntity entity = new DifyMigrationResultEntity();
+            entity.setTenantId(tenantId);
+            entity.setSourceName(text(wf.get("name")));
+            entity.setStatus("SUCCEEDED");
+            entity.setTargetType("WorkflowDefinition");
+            entity.setSourceType("dify-workflow");
+            entity.setMappingDetail(json(wf));
+            resultRepository.save(entity);
+        }
+    }
+
     private Map<String, Object> preflightReport(Map<String, Object> payload) {
         List<Map<String, Object>> apps = apps(payload);
         List<Map<String, Object>> workflows = workflows(payload);
@@ -91,12 +184,66 @@ public class DifyMigrationApiImpl {
         int documentCount = documentCount(knowledgeBases);
 
         List<String> blockers = new ArrayList<>();
+        List<Map<String, String>> risks = new ArrayList<>();
+        List<Map<String, String>> compatibilityIssues = new ArrayList<>();
+
         if (apps.isEmpty() && workflows.isEmpty() && tools.isEmpty() && knowledgeBases.isEmpty()) {
             blockers.add("未发现 Dify app/workflow/tool/knowledge 导出内容");
         }
         for (Map<String, Object> tool : tools) {
-            if (blank(nameOf(tool))) {
+            String name = nameOf(tool);
+            if (blank(name)) {
                 blockers.add("存在缺少 name 的 tool，无法迁移到 FunctionDefinition");
+            } else if (blank(text(tool.get("endpoint"))) && blank(text(tool.get("url"))) && blank(text(tool.get("server_url")))) {
+                risks.add(risk("MEDIUM", "tool." + name, "缺少 endpoint/url/server_url，导入后需手动配置"));
+            }
+            if (blank(text(tool.get("input_schema"))) && blank(text(tool.get("inputSchema"))) && blank(text(tool.get("parameters")))) {
+                risks.add(risk("LOW", "tool." + name, "缺少 input schema，FunctionDefinition parameters 将为默认值"));
+            }
+        }
+
+        // Knowledge base permissions check
+        for (Map<String, Object> kb : knowledgeBases) {
+            String kbName = nameOf(kb);
+            if (kb.containsKey("permissions") || kb.containsKey("accessTags")) {
+                // Has permission info, good
+            } else {
+                risks.add(risk("MEDIUM", "knowledgeBase." + (kbName != null ? kbName : "unknown"),
+                        "知识库缺少 permissions/accessTags，导入后将继承默认权限策略"));
+            }
+            List<Map<String, Object>> docs = documents(kb);
+            for (Map<String, Object> doc : docs) {
+                if (blank(text(doc.get("content"))) && blank(text(doc.get("contentHash")))) {
+                    compatibilityIssues.add(compat("document." + text(doc.get("title")),
+                            "文档缺少 content 或 contentHash，需重新上传或分块"));
+                }
+            }
+        }
+
+        // Workflow node compatibility
+        for (Map<String, Object> wf : workflows) {
+            String wfName = nameOf(wf);
+            List<Map<String, Object>> nodes = maps(wf.get("nodes"));
+            if (nodes.isEmpty()) {
+                nodes = maps(wf.get("graph"));
+            }
+            for (Map<String, Object> node : nodes) {
+                String nodeType = text(node.get("type"));
+                if (nodeType == null) {
+                    nodeType = text(node.get("nodeType"));
+                }
+                if (nodeType == null) {
+                    compatibilityIssues.add(compat("workflow." + (wfName != null ? wfName : "unknown"),
+                            "工作流节点缺少 type 字段，AgentHub 将按默认 Agent 节点处理"));
+                }
+                String agentRef = text(node.get("agentId"));
+                if (agentRef == null) {
+                    agentRef = text(node.get("appId"));
+                }
+                if (agentRef == null && ("agent".equalsIgnoreCase(nodeType) || "llm".equalsIgnoreCase(nodeType))) {
+                    compatibilityIssues.add(compat("workflow." + (wfName != null ? wfName : "unknown") + ".node",
+                            "LLM/Agent 节点缺少 agentId/appId 引用，导入后需绑定 Agent"));
+                }
             }
         }
 
@@ -107,6 +254,9 @@ public class DifyMigrationApiImpl {
         if (!knowledgeBases.isEmpty() && documentCount == 0) {
             warnings.add("发现知识库但未发现 documents，导入后需要补充文档或分块");
         }
+        if (!tools.isEmpty() && apps.isEmpty()) {
+            warnings.add("发现工具但未发现 app，工具导入后需手动绑定到 Agent");
+        }
 
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("apps", apps.size());
@@ -114,6 +264,8 @@ public class DifyMigrationApiImpl {
         summary.put("tools", tools.size());
         summary.put("knowledgeBases", knowledgeBases.size());
         summary.put("documents", documentCount);
+        summary.put("riskCount", risks.size());
+        summary.put("compatibilityIssueCount", compatibilityIssues.size());
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("tenantId", TenantContext.externalTenantId());
@@ -122,8 +274,25 @@ public class DifyMigrationApiImpl {
         response.put("summary", summary);
         response.put("blockers", blockers);
         response.put("warnings", warnings);
+        response.put("risks", risks);
+        response.put("compatibilityIssues", compatibilityIssues);
         response.put("mappings", mappings(apps, workflows, tools, knowledgeBases));
         return response;
+    }
+
+    private Map<String, String> risk(String level, String target, String description) {
+        Map<String, String> item = new LinkedHashMap<>();
+        item.put("level", level);
+        item.put("target", target);
+        item.put("description", description);
+        return item;
+    }
+
+    private Map<String, String> compat(String target, String issue) {
+        Map<String, String> item = new LinkedHashMap<>();
+        item.put("target", target);
+        item.put("issue", issue);
+        return item;
     }
 
     private List<Map<String, Object>> importTools(List<Map<String, Object>> tools) {
@@ -137,6 +306,9 @@ public class DifyMigrationApiImpl {
             function.setParameters(json(firstNonNull(tool.get("input_schema"), firstNonNull(tool.get("inputSchema"), tool.get("parameters")))));
             function.setImplementation("dify-tool");
             function.setTimeoutMs(intValue(tool.get("timeoutMs"), 30000));
+            function.setRetryPolicy(text(tool.get("retryPolicy")));
+            function.setCircuitBreakerPolicy(text(tool.get("circuitBreakerPolicy")));
+            function.setFallbackResponse(text(tool.get("fallbackResponse")));
             function.setOwnerId(TenantContext.userId());
             result.add(mapFunction(functionRegistryService.registerFunction(function)));
         }
@@ -350,6 +522,10 @@ public class DifyMigrationApiImpl {
         result.put("endpoint", function.getEndpoint());
         result.put("method", function.getMethod());
         result.put("implementation", function.getImplementation());
+        result.put("timeoutMs", function.getTimeoutMs());
+        result.put("retryPolicy", function.getRetryPolicy());
+        result.put("circuitBreakerPolicy", function.getCircuitBreakerPolicy());
+        result.put("fallbackResponse", function.getFallbackResponse());
         return result;
     }
 
@@ -427,5 +603,22 @@ public class DifyMigrationApiImpl {
         } catch (Exception ex) {
             return value;
         }
+    }
+
+    private Map<String, Object> mapResult(DifyMigrationResultEntity entity) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", entity.getId());
+        result.put("sourceName", entity.getSourceName());
+        result.put("status", entity.getStatus());
+        result.put("targetType", entity.getTargetType());
+        result.put("sourceType", entity.getSourceType());
+        result.put("errorMessage", entity.getErrorMessage());
+        result.put("createdAt", entity.getCreatedAt());
+        try {
+            result.put("mappingDetail", objectMapper.readValue(entity.getMappingDetail(), Object.class));
+        } catch (Exception ex) {
+            result.put("mappingDetail", entity.getMappingDetail());
+        }
+        return result;
     }
 }

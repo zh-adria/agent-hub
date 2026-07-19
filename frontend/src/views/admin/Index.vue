@@ -232,9 +232,14 @@
             </tbody>
           </table>
           <div v-if="deliveryEvidence.exportHint" class="notice">{{ deliveryEvidence.exportHint }}</div>
-          <button type="button" class="evidence-download" @click="downloadDeliveryEvidence">
-            下载 JSON
-          </button>
+          <div class="evidence-actions">
+            <button type="button" class="evidence-download" @click="downloadDeliveryEvidence('json')">
+              下载 JSON
+            </button>
+            <button type="button" class="evidence-download secondary" @click="downloadDeliveryEvidence('zip')">
+              导出归档 (ZIP)
+            </button>
+          </div>
         </div>
         <div>
           <h3>证据端点</h3>
@@ -255,6 +260,151 @@
             </tbody>
           </table>
           <div v-else class="empty">暂无证据包数据</div>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="activeTab === 'dify-import'" class="section">
+      <h3>Dify 导出物导入</h3>
+      <p class="hint">粘贴 Dify 导出 JSON，点击"前置检查"验证兼容性，确认后执行导入。</p>
+      <form class="settings-form" @submit.prevent="runPreflight">
+        <label>Dify 导出 JSON</label>
+        <textarea v-model="difyPayload" rows="12" placeholder='{"apps":[],"workflows":[],"tools":[],"knowledgeBases":[]}'></textarea>
+        <div class="dify-actions">
+          <button type="button" class="secondary" @click="runPreflight" :disabled="!difyPayload">前置检查</button>
+          <button type="button" @click="runDifyImport" :disabled="!difyPayload">执行导入</button>
+        </div>
+        <div v-if="preflightError" class="notice bad">{{ preflightError }}</div>
+        <div v-if="preflightReport" class="preflight-result">
+          <h4>检查结果</h4>
+          <div class="preflight-summary">
+            <section class="mini-metric">
+              <span>状态</span>
+              <strong :class="preflightReport.ready ? 'ok' : 'bad'">
+                {{ preflightReport.ready ? '可导入' : '有阻塞' }}
+              </strong>
+            </section>
+            <section class="mini-metric">
+              <span>Apps</span>
+              <strong>{{ preflightReport.summary?.apps ?? 0 }}</strong>
+            </section>
+            <section class="mini-metric">
+              <span>Workflows</span>
+              <strong>{{ preflightReport.summary?.workflows ?? 0 }}</strong>
+            </section>
+            <section class="mini-metric">
+              <span>Tools</span>
+              <strong>{{ preflightReport.summary?.tools ?? 0 }}</strong>
+            </section>
+            <section class="mini-metric">
+              <span>Knowledge Bases</span>
+              <strong>{{ preflightReport.summary?.knowledgeBases ?? 0 }}</strong>
+            </section>
+            <section class="mini-metric">
+              <span>Documents</span>
+              <strong>{{ preflightReport.summary?.documents ?? 0 }}</strong>
+            </section>
+          </div>
+          <div v-if="preflightReport.blockers && preflightReport.blockers.length > 0" class="alert-list">
+            <h4>阻塞项</h4>
+            <div v-for="(blocker, index) in preflightReport.blockers" :key="index" class="alert-item bad">
+              {{ blocker }}
+            </div>
+          </div>
+          <div v-if="preflightReport.warnings && preflightReport.warnings.length > 0" class="alert-list">
+            <h4>警告</h4>
+            <div v-for="(warning, index) in preflightReport.warnings" :key="index" class="alert-item warn">
+              {{ warning }}
+            </div>
+          </div>
+          <div v-if="preflightReport.mappings && preflightReport.mappings.length > 0" class="alert-list">
+            <h4>映射预览</h4>
+            <table class="compact">
+              <thead>
+                <tr><th>源名称</th><th>目标类型</th><th>状态</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in preflightReport.mappings" :key="item.sourceName + item.targetType">
+                  <td>{{ item.sourceName }}</td>
+                  <td>{{ item.targetType }}</td>
+                  <td><span :class="['pill', statusPillClass(item.status)]">{{ item.status }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-if="preflightReport.risks && preflightReport.risks.length > 0" class="alert-list">
+            <h4>风险项</h4>
+            <div v-for="(risk, index) in preflightReport.risks" :key="'risk-' + index" class="alert-item" :class="risk.level === 'HIGH' ? 'bad' : 'warn'">
+              <strong>[{{ risk.level }}] {{ risk.target }}:</strong> {{ risk.description }}
+            </div>
+          </div>
+          <div v-if="preflightReport.compatibilityIssues && preflightReport.compatibilityIssues.length > 0" class="alert-list">
+            <h4>兼容性问题</h4>
+            <div v-for="(issue, index) in preflightReport.compatibilityIssues" :key="'compat-' + index" class="alert-item warn">
+              <strong>{{ issue.target }}:</strong> {{ issue.issue }}
+            </div>
+          </div>
+        </div>
+        <div v-if="migrationError" class="notice bad">{{ migrationError }}</div>
+      </form>
+    </section>
+
+    <section v-if="activeTab === 'dify-results'" class="section">
+      <div class="section-header">
+        <h3>Dify 导入结果</h3>
+        <button type="button" class="secondary" @click="loadDifyResults">刷新</button>
+      </div>
+      <div v-if="importResults.length === 0" class="empty">暂无导入记录，请先在"Dify 导入"页签执行导入。</div>
+      <div v-else class="results-summary">
+        <section class="mini-metric">
+          <span>总数</span>
+          <strong>{{ importResults.length }}</strong>
+        </section>
+        <section class="mini-metric">
+          <span>成功</span>
+          <strong class="ok">{{ importResults.filter(r => r.status === 'SUCCEEDED').length }}</strong>
+        </section>
+        <section class="mini-metric">
+          <span>失败</span>
+          <strong class="bad">{{ importResults.filter(r => r.status === 'FAILED').length }}</strong>
+        </section>
+      </div>
+      <table v-if="importResults.length > 0">
+        <thead>
+          <tr>
+            <th>源名称</th>
+            <th>目标类型</th>
+            <th>源类型</th>
+            <th>状态</th>
+            <th>错误</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in importResults" :key="item.id">
+            <td>{{ item.sourceName }}</td>
+            <td>{{ item.targetType }}</td>
+            <td>{{ item.sourceType }}</td>
+            <td><span :class="['pill', statusPillClass(item.status)]">{{ item.status }}</span></td>
+            <td class="clip">{{ item.errorMessage || '-' }}</td>
+            <td>{{ item.createdAt }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section v-if="activeTab === 'delivery-templates'" class="section">
+      <h3>客户交付模板包</h3>
+      <p class="hint">选择版本和格式，下载对应交付模板。ZIP 格式包含部署清单、验收标准和运维手册。</p>
+      <div v-if="templateError" class="notice bad">{{ templateError }}</div>
+      <div class="template-grid">
+        <div v-for="tpl in deliveryTemplates" :key="tpl.id" class="template-card">
+          <h4>{{ tpl.label }}</h4>
+          <p>{{ tpl.description }}</p>
+          <div class="template-actions">
+            <button type="button" class="secondary" @click="downloadTemplate(tpl.id, 'json')">JSON</button>
+            <button type="button" @click="downloadTemplate(tpl.id, 'zip')">ZIP 归档</button>
+          </div>
         </div>
       </div>
     </section>
@@ -470,6 +620,10 @@ export default {
         { key: 'readiness', label: '交付就绪', permissions: ['audit:read'] },
         { key: 'production', label: '生产化', permissions: ['audit:read'] },
         { key: 'evidence', label: '证据包', permissions: ['audit:read'] },
+        { key: 'dify-import', label: 'Dify 导入', permissions: ['migration:write'] },
+        { key: 'dify-results', label: '导入结果', permissions: ['migration:read'] },
+        { key: 'preflight', label: '迁移检查', permissions: ['migration:write'] },
+        { key: 'delivery-templates', label: '交付模板', permissions: ['audit:read'] },
         { key: 'traces', label: '链路追踪', permissions: ['trace:read'] },
         { key: 'workflows', label: '工作流', permissions: ['workflow:read'] },
         { key: 'evaluations', label: '评估', permissions: ['evaluation:read'] },
@@ -497,8 +651,14 @@ export default {
       newSecret: '',
       botMessage: '',
       llmAudit: [],
-      llmAuditSummary: {},
-      auditFilters: {
+      importResults: [],
+      migrationError: '',
+      deliveryTemplates: [],
+      templateError: '',
+      selectedTemplate: 'standard',
+      templateFormat: 'json'
+      preflightReport: null,
+      preflightError: ''
         agentId: '',
         agentSessionId: '',
         traceId: '',
@@ -525,6 +685,8 @@ export default {
         this.can('audit:read') ? this.loadReadiness() : Promise.resolve(),
         this.can('audit:read') ? this.loadProductionReadiness() : Promise.resolve(),
         this.can('audit:read') ? this.loadDeliveryEvidence() : Promise.resolve(),
+        this.can('migration:read') ? this.loadDifyResults() : Promise.resolve(),
+        this.can('audit:read') ? this.loadDeliveryTemplates() : Promise.resolve(),
         this.can('trace:read') ? this.loadTraces() : Promise.resolve(),
         this.can('workflow:read') ? this.loadWorkflows() : Promise.resolve(),
         this.can('evaluation:read') ? this.loadEvaluations() : Promise.resolve(),
@@ -556,18 +718,43 @@ export default {
       const response = await apiFetch('/api/observability/delivery-evidence');
       this.deliveryEvidence = response.ok ? await response.json() : {};
     },
-    downloadDeliveryEvidence() {
-      const payload = JSON.stringify(this.deliveryEvidence || {}, null, 2);
-      const blob = new Blob([payload], { type: 'application/json' });
-      const link = document.createElement('a');
-      const generatedAt = String(this.deliveryEvidence.generatedAt || new Date().toISOString())
-        .replace(/[:.]/g, '-');
-      link.href = URL.createObjectURL(blob);
-      link.download = `agenthub-delivery-evidence-${generatedAt}.json`;
-      document.body.appendChild(link);
-      link.click();
-      URL.revokeObjectURL(link.href);
-      document.body.removeChild(link);
+    downloadDeliveryEvidence(format) {
+      const isZip = format === 'zip';
+      const endpoint = isZip
+        ? '/api/observability/delivery-evidence/export'
+        : '/api/observability/delivery-evidence';
+      const suffix = isZip ? 'zip' : 'json';
+      const mimeType = isZip ? 'application/zip' : 'application/json';
+
+      apiFetch(endpoint).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(isZip ? '归档导出失败' : 'JSON 下载失败');
+        }
+        const blob = await response.blob();
+        const generatedAt = String(this.deliveryEvidence.generatedAt || new Date().toISOString())
+          .replace(/[:.]/g, '-');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `agenthub-delivery-evidence-${generatedAt}.${suffix}`;
+        document.body.appendChild(link);
+        link.click();
+        URL.revokeObjectURL(link.href);
+        document.body.removeChild(link);
+      }).catch((error) => {
+        // fallback: download JSON from cached data when ZIP endpoint is unavailable
+        if (!isZip) return;
+        const payload = JSON.stringify(this.deliveryEvidence || {}, null, 2);
+        const blob = new Blob([payload], { type: 'application/json' });
+        const generatedAt = String(this.deliveryEvidence.generatedAt || new Date().toISOString())
+          .replace(/[:.]/g, '-');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `agenthub-delivery-evidence-${generatedAt}.json`;
+        document.body.appendChild(link);
+        link.click();
+        URL.revokeObjectURL(link.href);
+        document.body.removeChild(link);
+      });
     },
     async seedDemoData() {
       if (this.seedBusy) return;
@@ -691,6 +878,81 @@ export default {
       this.llmAudit = records.ok ? await records.json() : [];
       this.llmAuditSummary = summary.ok ? await summary.json() : {};
     },
+    async loadDifyResults() {
+      const response = await apiFetch('/api/migrations/dify/results');
+      this.importResults = response.ok ? await response.json() : [];
+    },
+    async runDifyImport() {
+      this.migrationError = '';
+      try {
+        const payload = JSON.parse(this.difyPayload);
+        const response = await apiFetch('/api/migrations/dify/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || 'Dify 导入失败');
+        }
+        const result = await response.json();
+        this.migrationError = '';
+        this.difyPayload = JSON.stringify({ apps: [], workflows: [], tools: [], knowledgeBases: [] }, null, 2);
+        await this.loadDifyResults();
+        await this.refreshAll();
+        this.activeTab = 'dify-results';
+      } catch (error) {
+        this.migrationError = error.message || 'Dify 导入失败';
+      }
+    },
+    async runPreflight() {
+      this.preflightError = '';
+      try {
+        const payload = JSON.parse(this.difyPayload);
+        const response = await apiFetch('/api/migrations/dify/preflight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || '前置检查失败');
+        }
+        this.preflightReport = await response.json();
+        this.preflightError = '';
+      } catch (error) {
+        this.preflightError = error.message || '前置检查失败';
+      }
+    },
+    statusPillClass(status) {
+      if (!status) return 'pending';
+      const upper = String(status).toUpperCase();
+      if (upper === 'SUCCEEDED' || upper === 'READY' || upper === 'DONE') return 'ready';
+      if (upper === 'FAILED' || upper === 'BLOCKED' || upper === 'PENDING') return 'pending';
+      return 'pending';
+    },
+    async loadDeliveryTemplates() {
+      const response = await apiFetch('/api/delivery/templates/list');
+      this.deliveryTemplates = response.ok ? await response.json() : [];
+    },
+    downloadTemplate(edition, format) {
+      const url = `/api/delivery/templates?edition=${edition}&format=${format}`;
+      apiFetch(url).then(async (response) => {
+        if (!response.ok) {
+          throw new Error('模板下载失败');
+        }
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `agenthub-delivery-${edition}-${new Date().toISOString().replace(/[:.]/g, '-')}.${format === 'zip' ? 'zip' : 'json'}`;
+        document.body.appendChild(link);
+        link.click();
+        URL.revokeObjectURL(link.href);
+        document.body.removeChild(link);
+      }).catch((error) => {
+        this.templateError = error.message || '模板下载失败';
+      });
+    }
     clearAuditFilters() {
       this.auditFilters = {
         agentId: '',
@@ -994,6 +1256,111 @@ textarea {
 }
 .evidence-download {
   margin-top: 12px;
+}
+.evidence-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dify-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.hint {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.preflight-result {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+.preflight-result h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.preflight-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.alert-list {
+  margin-top: 10px;
+}
+.alert-list h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.alert-item {
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.alert-item.bad {
+  background: #fff1f0;
+  color: #cf1322;
+  border: 1px solid #ffa39e;
+}
+.alert-item.warn {
+  background: #fffbe6;
+  color: #d48806;
+  border: 1px solid #ffe58f;
+}
+.results-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(80px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+}
+.template-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.template-card h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.template-card p {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.template-actions {
+  display: flex;
+  gap: 8px;
+}
+table.compact {
+  font-size: 12px;
+}
+table.compact th,
+table.compact td {
+  padding: 5px 6px;
 }
 .clip {
   max-width: 420px;

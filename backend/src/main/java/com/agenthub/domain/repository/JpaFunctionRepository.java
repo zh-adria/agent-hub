@@ -76,6 +76,9 @@ public class JpaFunctionRepository implements FunctionRepository {
         entity.setImplementation(domain.getImplementation());
         entity.setParameters(domain.getParameters());
         entity.setTimeoutMs(domain.getTimeoutMs() != null ? domain.getTimeoutMs() : 30000);
+        entity.setRetryPolicy(domain.getRetryPolicy());
+        entity.setCircuitBreakerPolicy(domain.getCircuitBreakerPolicy());
+        entity.setFallbackResponse(domain.getFallbackResponse());
         entity.setStatus(1);
         if (entity.getCreatedBy() == null) {
             entity.setCreatedBy(TenantContext.userId());
@@ -94,6 +97,9 @@ public class JpaFunctionRepository implements FunctionRepository {
         domain.setParameters(entity.getParameters());
         domain.setTimeoutMs(entity.getTimeoutMs());
         domain.setImplementation(entity.getImplementation() != null ? entity.getImplementation() : entity.getProtocol());
+        domain.setRetryPolicy(entity.getRetryPolicy());
+        domain.setCircuitBreakerPolicy(entity.getCircuitBreakerPolicy());
+        domain.setFallbackResponse(entity.getFallbackResponse());
         return domain;
     }
 }
