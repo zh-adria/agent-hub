@@ -2,611 +2,612 @@
   <div class="admin-console">
     <div class="page-header">
       <div>
-        <h2>管理控制台</h2>
-        <p>查看运行状态、链路追踪、工作流、评估、企业通道和用量审计。</p>
+        <h1 class="page-title">Admin Console</h1>
+        <p class="page-subtitle">Monitor health, traces, workflows, evaluations, and system audit.</p>
       </div>
       <div class="header-actions">
-        <button type="button" class="secondary" @click="seedDemoData" :disabled="seedBusy">
-          {{ seedBusy ? '生成中...' : '生成演示数据' }}
+        <button class="btn btn-secondary" @click="refreshAll">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:4px;">
+            <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+          Refresh
         </button>
-        <button type="button" @click="refreshAll">刷新</button>
+        <button class="btn btn-primary" @click="seedDemoData" :disabled="seedBusy">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;vertical-align:middle;margin-right:4px;">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+          {{ seedBusy ? 'Generating...' : 'Seed Demo Data' }}
+        </button>
       </div>
     </div>
 
-    <div class="status-grid">
-      <section class="metric">
-        <span>服务状态</span>
-        <strong :class="statusClass(health.status)">{{ health.status || '-' }}</strong>
-      </section>
-      <section class="metric">
-        <span>就绪状态</span>
-        <strong :class="statusClass(ready.status)">{{ ready.status || '-' }}</strong>
-      </section>
-      <section class="metric">
-        <span>链路数</span>
-        <strong>{{ summary.traceCount ?? '-' }}</strong>
-        <small>成功 {{ summary.traceSucceededCount ?? 0 }} / 失败 {{ summary.traceFailedCount ?? 0 }}</small>
-      </section>
-      <section class="metric">
-        <span>步骤记录</span>
-        <strong>{{ summary.stepRecordCount ?? '-' }}</strong>
-        <small>成功 {{ summary.stepSucceededCount ?? 0 }} / 失败 {{ summary.stepFailedCount ?? 0 }}</small>
-      </section>
-      <section class="metric">
-        <span>用量审计</span>
-        <strong>{{ summary.llmAuditRecordCount ?? '-' }}</strong>
-        <small>{{ summary.llmTotalTokens || 0 }} tokens</small>
-      </section>
-      <section class="metric">
-        <span>交付就绪</span>
-        <strong>{{ readiness.readinessScore ?? '-' }}%</strong>
-        <small>{{ readiness.readyCount || 0 }}/{{ readiness.totalCount || 0 }} checks</small>
-      </section>
-      <section class="metric">
-        <span>生产化缺口</span>
-        <strong :class="productionReadiness.productionReady ? 'ok' : 'bad'">
-          {{ productionReadiness.blockingGapCount ?? '-' }}
-        </strong>
-        <small>{{ productionReadiness.mvpReady ? 'MVP ready' : 'MVP pending' }}</small>
-      </section>
+    <!-- Metric Cards -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">Service Status</span>
+          <strong :class="['metric-value', statusClass(health.status)]">{{ health.status || '-' }}</strong>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">Readiness</span>
+          <strong :class="['metric-value', statusClass(ready.status)]">{{ ready.status || '-' }}</strong>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">Traces</span>
+          <strong class="metric-value">{{ summary.traceCount ?? '-' }}</strong>
+          <span class="metric-detail">{{ summary.traceSucceededCount ?? 0 }} success / {{ summary.traceFailedCount ?? 0 }} failed</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" /><line x1="7" y1="2" x2="7" y2="22" /><line x1="17" y1="2" x2="17" y2="22" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">Step Records</span>
+          <strong class="metric-value">{{ summary.stepRecordCount ?? '-' }}</strong>
+          <span class="metric-detail">{{ summary.stepSucceededCount ?? 0 }} / {{ summary.stepFailedCount ?? 0 }}</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">LLM Usage</span>
+          <strong class="metric-value">{{ summary.llmAuditRecordCount ?? '-' }}</strong>
+          <span class="metric-detail">{{ summary.llmTotalTokens || 0 }} tokens</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">Delivery Score</span>
+          <strong class="metric-value">{{ readiness.readinessScore ?? '-' }}%</strong>
+          <span class="metric-detail">{{ readiness.readyCount || 0 }}/{{ readiness.totalCount || 0 }} checks</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <div class="metric-body">
+          <span class="metric-label">Production Gaps</span>
+          <strong :class="['metric-value', productionReadiness.productionReady ? 'ok' : 'bad']">
+            {{ productionReadiness.blockingGapCount ?? '-' }}
+          </strong>
+          <span class="metric-detail">{{ productionReadiness.mvpReady ? 'MVP Ready' : 'MVP Pending' }}</span>
+        </div>
+      </div>
     </div>
 
-    <div class="tabs">
-      <button
-        v-for="tab in visibleTabs"
-        :key="tab.key"
-        type="button"
-        :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
-      >
-        {{ tab.label }}
-      </button>
+    <!-- Tabs -->
+    <div class="tab-bar-wrapper">
+      <div class="tab-bar">
+        <button
+          v-for="tab in visibleTabs"
+          :key="tab.key"
+          :class="['tab-btn', { active: activeTab === tab.key }]"
+          @click="activeTab = tab.key"
+        >
+          {{ tab.label }}
+          <span v-if="tab.key === 'audit'" class="tab-count">{{ llmAudit.length }}</span>
+        </button>
+      </div>
     </div>
 
-    <section v-if="activeTab === 'overview'" class="section">
-      <div class="section-grid">
-        <div>
-          <h3>集成状态</h3>
-          <table>
-            <tbody>
-              <tr v-for="(value, key) in health.integrations || {}" :key="key">
-                <th>{{ key }}</th>
-                <td>{{ value }}</td>
-              </tr>
-              <tr>
-                <th>database</th>
-                <td>{{ ready.database }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3>当前身份</h3>
-          <table>
-            <tbody>
-              <tr>
-                <th>用户</th>
-                <td>{{ user?.displayName || user?.username || '-' }}</td>
-              </tr>
-              <tr>
-                <th>租户</th>
-                <td>{{ user?.tenantId || '-' }}</td>
-              </tr>
-              <tr>
-                <th>角色</th>
-                <td>{{ joinList(user?.roles) }}</td>
-              </tr>
-              <tr>
-                <th>权限</th>
-                <td class="clip">{{ joinList(user?.permissions) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'readiness'" class="section">
-      <div class="section-grid">
-        <div>
-          <h3>Dify 替代交付就绪度</h3>
-          <table v-if="readiness.checks && readiness.checks.length > 0">
-            <thead>
-              <tr>
-                <th>产品域</th>
-                <th>状态</th>
-                <th>数量</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in readiness.checks" :key="item.domain">
-                <td>{{ item.domain }}</td>
-                <td>
-                  <span :class="['pill', item.ready ? 'ready' : 'pending']">
-                    {{ item.ready ? 'ready' : 'pending' }}
-                  </span>
-                </td>
-                <td>{{ item.count }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty">暂无交付就绪数据</div>
-        </div>
-        <div>
-          <h3>下一步</h3>
-          <div
-            v-for="action in readiness.nextActions || []"
-            :key="action"
-            class="readiness-action"
-          >
-            {{ action }}
-          </div>
-          <div v-if="!readiness.nextActions || readiness.nextActions.length === 0" class="empty">
-            暂无待办
-          </div>
-          <div v-if="seedMessage" class="notice">{{ seedMessage }}</div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'production'" class="section">
-      <div class="section-grid">
-        <div>
-          <h3>生产化缺口</h3>
-          <table v-if="productionReadiness.gaps && productionReadiness.gaps.length > 0">
-            <thead>
-              <tr>
-                <th>优先级</th>
-                <th>产品域</th>
-                <th>状态</th>
-                <th>任务</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="gap in productionReadiness.gaps" :key="gap.domain + gap.task">
-                <td>{{ gap.priority }}</td>
-                <td>{{ gap.domain }}</td>
-                <td>
-                  <span :class="['pill', gap.status === 'DONE' ? 'ready' : 'pending']">
-                    {{ gap.status }}
-                  </span>
-                </td>
-                <td>{{ gap.task }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty">暂无生产化缺口数据</div>
-        </div>
-        <div>
-          <h3>验收口径</h3>
-          <div
-            v-for="gap in productionReadiness.gaps || []"
-            :key="gap.task"
-            class="readiness-action"
-          >
-            <strong>{{ gap.domain }}</strong>
-            <span>{{ gap.acceptance }}</span>
-          </div>
-          <h3>下一步</h3>
-          <div
-            v-for="action in productionReadiness.nextActions || []"
-            :key="action"
-            class="readiness-action"
-          >
-            {{ action }}
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'evidence'" class="section">
-      <div class="section-grid">
-        <div>
-          <h3>交付验收证据包</h3>
-          <table>
-            <tbody>
-              <tr>
-                <th>租户</th>
-                <td>{{ deliveryEvidence.tenantId || '-' }}</td>
-              </tr>
-              <tr>
-                <th>生成时间</th>
-                <td>{{ deliveryEvidence.generatedAt || '-' }}</td>
-              </tr>
-              <tr>
-                <th>范围</th>
-                <td>{{ deliveryEvidence.scope || '-' }}</td>
-              </tr>
-              <tr>
-                <th>交付就绪</th>
-                <td>
-                  {{ deliveryEvidence.deliveryReadiness?.readyCount ?? 0 }}/{{
-                    deliveryEvidence.deliveryReadiness?.totalCount ?? 0
-                  }}
-                </td>
-              </tr>
-              <tr>
-                <th>生产就绪</th>
-                <td>{{ deliveryEvidence.productionReadiness?.productionReady ? 'ready' : 'pending' }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-if="deliveryEvidence.exportHint" class="notice">{{ deliveryEvidence.exportHint }}</div>
-          <div class="evidence-actions">
-            <button type="button" class="evidence-download" @click="downloadDeliveryEvidence('json')">
-              下载 JSON
-            </button>
-            <button type="button" class="evidence-download secondary" @click="downloadDeliveryEvidence('zip')">
-              导出归档 (ZIP)
-            </button>
-          </div>
-        </div>
-        <div>
-          <h3>证据端点</h3>
-          <table v-if="deliveryEvidence.evidence && deliveryEvidence.evidence.length > 0">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>端点</th>
-                <th>用途</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in deliveryEvidence.evidence" :key="item.endpoint">
-                <td>{{ item.name }}</td>
-                <td class="clip">{{ item.endpoint }}</td>
-                <td>{{ item.purpose }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty">暂无证据包数据</div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'dify-import'" class="section">
-      <h3>Dify 导出物导入</h3>
-      <p class="hint">粘贴 Dify 导出 JSON，点击"前置检查"验证兼容性，确认后执行导入。</p>
-      <form class="settings-form" @submit.prevent="runPreflight">
-        <label>Dify 导出 JSON</label>
-        <textarea v-model="difyPayload" rows="12" placeholder='{"apps":[],"workflows":[],"tools":[],"knowledgeBases":[]}'></textarea>
-        <div class="dify-actions">
-          <button type="button" class="secondary" @click="runPreflight" :disabled="!difyPayload">前置检查</button>
-          <button type="button" @click="runDifyImport" :disabled="!difyPayload">执行导入</button>
-        </div>
-        <div v-if="preflightError" class="notice bad">{{ preflightError }}</div>
-        <div v-if="preflightReport" class="preflight-result">
-          <h4>检查结果</h4>
-          <div class="preflight-summary">
-            <section class="mini-metric">
-              <span>状态</span>
-              <strong :class="preflightReport.ready ? 'ok' : 'bad'">
-                {{ preflightReport.ready ? '可导入' : '有阻塞' }}
-              </strong>
-            </section>
-            <section class="mini-metric">
-              <span>Apps</span>
-              <strong>{{ preflightReport.summary?.apps ?? 0 }}</strong>
-            </section>
-            <section class="mini-metric">
-              <span>Workflows</span>
-              <strong>{{ preflightReport.summary?.workflows ?? 0 }}</strong>
-            </section>
-            <section class="mini-metric">
-              <span>Tools</span>
-              <strong>{{ preflightReport.summary?.tools ?? 0 }}</strong>
-            </section>
-            <section class="mini-metric">
-              <span>Knowledge Bases</span>
-              <strong>{{ preflightReport.summary?.knowledgeBases ?? 0 }}</strong>
-            </section>
-            <section class="mini-metric">
-              <span>Documents</span>
-              <strong>{{ preflightReport.summary?.documents ?? 0 }}</strong>
-            </section>
-          </div>
-          <div v-if="preflightReport.blockers && preflightReport.blockers.length > 0" class="alert-list">
-            <h4>阻塞项</h4>
-            <div v-for="(blocker, index) in preflightReport.blockers" :key="index" class="alert-item bad">
-              {{ blocker }}
+    <!-- Tab Content -->
+    <div class="tab-content">
+      <!-- Overview -->
+      <section v-if="activeTab === 'overview'" class="content-section">
+        <div class="section-grid">
+          <div class="info-card">
+            <h3>Integration Status</h3>
+            <div class="info-rows">
+              <div v-for="(value, key) in (health.integrations || {})" :key="key" class="info-row">
+                <span class="info-key">{{ key }}</span>
+                <span :class="['info-val', typeof value === 'boolean' ? (value ? 'ok' : 'bad') : '']">{{ value }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-key">database</span>
+                <span :class="['info-val', ready.database ? 'ok' : 'bad']">{{ ready.database }}</span>
+              </div>
             </div>
           </div>
-          <div v-if="preflightReport.warnings && preflightReport.warnings.length > 0" class="alert-list">
-            <h4>警告</h4>
-            <div v-for="(warning, index) in preflightReport.warnings" :key="index" class="alert-item warn">
-              {{ warning }}
+          <div class="info-card">
+            <h3>Current Identity</h3>
+            <div class="info-rows">
+              <div class="info-row">
+                <span class="info-key">User</span>
+                <span class="info-val">{{ user?.displayName || user?.username || '-' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-key">Tenant</span>
+                <span class="info-val">{{ user?.tenantId || '-' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-key">Roles</span>
+                <span class="info-val">{{ joinList(user?.roles) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-key">Permissions</span>
+                <span class="info-val clip">{{ joinList(user?.permissions) }}</span>
+              </div>
             </div>
           </div>
-          <div v-if="preflightReport.mappings && preflightReport.mappings.length > 0" class="alert-list">
-            <h4>映射预览</h4>
-            <table class="compact">
+        </div>
+      </section>
+
+      <!-- Readiness -->
+      <section v-if="activeTab === 'readiness'" class="content-section">
+        <div class="section-grid">
+          <div class="info-card">
+            <h3>Delivery Readiness</h3>
+            <div v-if="readiness.checks && readiness.checks.length" class="readiness-table">
+              <div v-for="item in readiness.checks" :key="item.domain" class="readiness-row">
+                <span class="readiness-domain">{{ item.domain }}</span>
+                <span :class="['pill', item.ready ? 'ready' : 'pending']">
+                  {{ item.ready ? 'ready' : 'pending' }}
+                </span>
+                <span class="readiness-count">{{ item.count }}</span>
+              </div>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No delivery readiness data</p>
+            </div>
+          </div>
+          <div class="info-card">
+            <h3>Next Actions</h3>
+            <div v-if="readiness.nextActions?.length" class="action-list">
+              <div v-for="(action, i) in readiness.nextActions" :key="i" class="action-item">
+                <span class="action-num">{{ i + 1 }}</span>
+                <span>{{ action }}</span>
+              </div>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No pending actions</p>
+            </div>
+            <div v-if="seedMessage" class="notice notice-success">{{ seedMessage }}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Production -->
+      <section v-if="activeTab === 'production'" class="content-section">
+        <div class="section-grid">
+          <div class="info-card">
+            <h3>Production Gaps</h3>
+            <div v-if="productionReadiness.gaps?.length" class="table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Priority</th><th>Domain</th><th>Status</th><th>Task</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="gap in productionReadiness.gaps" :key="gap.domain + gap.task">
+                    <td><span class="priority-badge" :class="'p-' + gap.priority?.toLowerCase()">{{ gap.priority }}</span></td>
+                    <td>{{ gap.domain }}</td>
+                    <td><span :class="['pill', gap.status === 'DONE' ? 'ready' : 'pending']">{{ gap.status }}</span></td>
+                    <td>{{ gap.task }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No production gap data</p>
+            </div>
+          </div>
+          <div class="info-card">
+            <h3>Acceptance Criteria</h3>
+            <div v-if="productionReadiness.gaps?.length" class="action-list">
+              <div v-for="(gap, i) in productionReadiness.gaps" :key="i" class="action-item">
+                <strong>{{ gap.domain }}</strong>
+                <span>{{ gap.acceptance }}</span>
+              </div>
+            </div>
+            <h3 class="mt-4">Next Steps</h3>
+            <div v-if="productionReadiness.nextActions?.length" class="action-list">
+              <div v-for="(action, i) in productionReadiness.nextActions" :key="i" class="action-item">
+                <span class="action-num">{{ i + 1 }}</span>
+                <span>{{ action }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Evidence -->
+      <section v-if="activeTab === 'evidence'" class="content-section">
+        <div class="section-grid">
+          <div class="info-card">
+            <h3>Delivery Evidence Package</h3>
+            <div class="info-rows">
+              <div class="info-row"><span class="info-key">Tenant</span><span class="info-val">{{ deliveryEvidence.tenantId || '-' }}</span></div>
+              <div class="info-row"><span class="info-key">Generated</span><span class="info-val">{{ deliveryEvidence.generatedAt || '-' }}</span></div>
+              <div class="info-row"><span class="info-key">Scope</span><span class="info-val">{{ deliveryEvidence.scope || '-' }}</span></div>
+              <div class="info-row">
+                <span class="info-key">Delivery Ready</span>
+                <span class="info-val">{{ deliveryEvidence.deliveryReadiness?.readyCount ?? 0 }}/{{ deliveryEvidence.deliveryReadiness?.totalCount ?? 0 }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-key">Production Ready</span>
+                <span :class="['info-val', deliveryEvidence.productionReadiness?.productionReady ? 'ok' : 'bad']">
+                  {{ deliveryEvidence.productionReadiness?.productionReady ? 'Yes' : 'No' }}
+                </span>
+              </div>
+            </div>
+            <div v-if="deliveryEvidence.exportHint" class="notice notice-info mt-4">{{ deliveryEvidence.exportHint }}</div>
+            <div class="btn-row mt-4">
+              <button class="btn btn-primary btn-sm" @click="downloadEvidence('json')">Download JSON</button>
+              <button class="btn btn-secondary btn-sm" @click="downloadEvidence('zip')">Export ZIP</button>
+            </div>
+          </div>
+          <div class="info-card">
+            <h3>Evidence Endpoints</h3>
+            <div v-if="deliveryEvidence.evidence?.length" class="table-wrapper">
+              <table class="data-table">
+                <thead><tr><th>Name</th><th>Endpoint</th><th>Purpose</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in deliveryEvidence.evidence" :key="item.endpoint">
+                    <td>{{ item.name }}</td>
+                    <td class="clip">{{ item.endpoint }}</td>
+                    <td>{{ item.purpose }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No evidence data</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dify Import -->
+      <section v-if="activeTab === 'dify-import'" class="content-section">
+        <div class="import-card">
+          <h3>Dify Export Import</h3>
+          <p class="section-hint">Paste a Dify export JSON, run preflight check, then import.</p>
+          <form @submit.prevent="runPreflight">
+            <label class="form-label">Dify Export JSON</label>
+            <textarea v-model="difyPayload" class="textarea import-textarea" rows="12"
+              placeholder='{"apps":[],"workflows":[],"tools":[],"knowledgeBases":[]}'></textarea>
+            <div class="btn-row mt-3">
+              <button type="button" class="btn btn-secondary" @click="runPreflight" :disabled="!difyPayload">
+                Preflight Check
+              </button>
+              <button type="button" class="btn btn-primary" @click="runImport" :disabled="!difyPayload">
+                Execute Import
+              </button>
+            </div>
+          </form>
+          <div v-if="preflightError" class="notice notice-danger mt-3">{{ preflightError }}</div>
+          <div v-if="preflightReport" class="preflight-panel">
+            <h4>Preflight Results</h4>
+            <div class="preflight-summary">
+              <div class="mini-metric">
+                <span>Status</span>
+                <strong :class="preflightReport.ready ? 'ok' : 'bad'">{{ preflightReport.ready ? 'Ready to import' : 'Blocked' }}</strong>
+              </div>
+              <div class="mini-metric"><span>Apps</span><strong>{{ preflightReport.summary?.apps ?? 0 }}</strong></div>
+              <div class="mini-metric"><span>Workflows</span><strong>{{ preflightReport.summary?.workflows ?? 0 }}</strong></div>
+              <div class="mini-metric"><span>Tools</span><strong>{{ preflightReport.summary?.tools ?? 0 }}</strong></div>
+              <div class="mini-metric"><span>Knowledge Bases</span><strong>{{ preflightReport.summary?.knowledgeBases ?? 0 }}</strong></div>
+              <div class="mini-metric"><span>Documents</span><strong>{{ preflightReport.summary?.documents ?? 0 }}</strong></div>
+            </div>
+            <div v-if="preflightReport.blockers?.length" class="alert-list">
+              <h5>Blockers</h5>
+              <div v-for="(b, i) in preflightReport.blockers" :key="i" class="alert-item bad">{{ b }}</div>
+            </div>
+            <div v-if="preflightReport.warnings?.length" class="alert-list">
+              <h5>Warnings</h5>
+              <div v-for="(w, i) in preflightReport.warnings" :key="i" class="alert-item warn">{{ w }}</div>
+            </div>
+            <div v-if="preflightReport.mappings?.length" class="alert-list">
+              <h5>Mapping Preview</h5>
+              <div class="table-wrapper">
+                <table class="data-table compact">
+                  <thead><tr><th>Source</th><th>Target</th><th>Status</th></tr></thead>
+                  <tbody>
+                    <tr v-for="item in preflightReport.mappings" :key="item.sourceName + item.targetType">
+                      <td>{{ item.sourceName }}</td>
+                      <td>{{ item.targetType }}</td>
+                      <td><span :class="['pill', statusPillClass(item.status)]">{{ item.status }}</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div v-if="migrationError" class="notice notice-danger mt-3">{{ migrationError }}</div>
+        </div>
+      </section>
+
+      <!-- Dify Results -->
+      <section v-if="activeTab === 'dify-results'" class="content-section">
+        <div class="info-card">
+          <div class="section-header-row">
+            <h3>Import Results</h3>
+            <button class="btn btn-secondary btn-sm" @click="loadDifyResults">Refresh</button>
+          </div>
+          <div v-if="!importResults.length" class="empty-state">
+            <p class="empty-state-desc">No import records. Run an import first.</p>
+          </div>
+          <div v-else>
+            <div class="results-summary">
+              <div class="mini-metric"><span>Total</span><strong>{{ importResults.length }}</strong></div>
+              <div class="mini-metric"><span>Success</span><strong class="ok">{{ importResults.filter(r => r.status === 'SUCCEEDED').length }}</strong></div>
+              <div class="mini-metric"><span>Failed</span><strong class="bad">{{ importResults.filter(r => r.status === 'FAILED').length }}</strong></div>
+            </div>
+            <div class="table-wrapper mt-3">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Source</th><th>Target</th><th>Source Type</th><th>Status</th><th>Error</th><th>Time</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in importResults" :key="item.id">
+                    <td>{{ item.sourceName }}</td>
+                    <td>{{ item.targetType }}</td>
+                    <td>{{ item.sourceType }}</td>
+                    <td><span :class="['pill', statusPillClass(item.status)]">{{ item.status }}</span></td>
+                    <td class="clip">{{ item.errorMessage || '-' }}</td>
+                    <td>{{ item.createdAt }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Delivery Templates -->
+      <section v-if="activeTab === 'delivery-templates'" class="content-section">
+        <div class="info-card">
+          <h3>Client Delivery Templates</h3>
+          <p class="section-hint">Select version and format to download delivery templates.</p>
+          <div v-if="templateError" class="notice notice-danger">{{ templateError }}</div>
+          <div class="template-grid">
+            <div v-for="tpl in deliveryTemplates" :key="tpl.id" class="template-card">
+              <h4>{{ tpl.label }}</h4>
+              <p>{{ tpl.description }}</p>
+              <div class="template-actions">
+                <button class="btn btn-secondary btn-sm" @click="downloadTemplate(tpl.id, 'json')">JSON</button>
+                <button class="btn btn-primary btn-sm" @click="downloadTemplate(tpl.id, 'zip')">ZIP</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Traces -->
+      <section v-if="activeTab === 'traces'" class="content-section">
+        <div class="split-layout">
+          <div class="list-panel">
+            <h3>Traces</h3>
+            <div v-if="traces.length" class="list-items">
+              <button
+                v-for="trace in traces"
+                :key="trace.id"
+                :class="['list-item', { active: selectedTrace && selectedTrace.id === trace.id }]"
+                @click="selectTrace(trace)"
+              >
+                <strong>{{ trace.name }}</strong>
+                <span>{{ trace.status }} / {{ formatDate(trace.startedAt) }}</span>
+              </button>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No traces</p>
+            </div>
+          </div>
+          <div class="detail-panel">
+            <h3>Step Records</h3>
+            <div v-if="traceSteps.length" class="table-wrapper">
+              <table class="data-table">
+                <thead><tr><th>Step</th><th>Status</th><th>Agent</th><th>Output</th></tr></thead>
+                <tbody>
+                  <tr v-for="step in traceSteps" :key="step.id">
+                    <td><code>{{ step.stepKey }}</code></td>
+                    <td><span :class="['pill', step.status === 'SUCCEEDED' ? 'ready' : 'pending']">{{ step.status }}</span></td>
+                    <td>{{ step.agentId || '-' }}</td>
+                    <td class="clip">{{ step.error || step.output || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">Select a trace to view steps</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Workflows -->
+      <section v-if="activeTab === 'workflows'" class="content-section">
+        <div class="split-layout">
+          <div class="list-panel">
+            <h3>Workflows</h3>
+            <div v-if="workflows.length" class="list-items">
+              <button
+                v-for="wf in workflows"
+                :key="wf.id"
+                :class="['list-item', { active: selectedWorkflow && selectedWorkflow.id === wf.id }]"
+                @click="selectedWorkflow = wf"
+              >
+                <strong>{{ wf.name }}</strong>
+                <span>{{ wf.description || 'No description' }}</span>
+              </button>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No workflows</p>
+            </div>
+          </div>
+          <div class="detail-panel">
+            <h3>Execute</h3>
+            <form @submit.prevent="executeWorkflow">
+              <label class="form-label">Input (JSON)</label>
+              <textarea v-model="workflowInput" class="textarea" rows="6" placeholder='{"key": "value"}'></textarea>
+              <button class="btn btn-primary mt-3" type="submit" :disabled="!selectedWorkflow || !canWorkflowExecute">
+                Execute Workflow
+              </button>
+            </form>
+            <div v-if="workflowResult" class="result-block mt-3">
+              <h4>Result</h4>
+              <pre>{{ workflowResult }}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Evaluations -->
+      <section v-if="activeTab === 'evaluations'" class="content-section">
+        <div class="info-card">
+          <h3>Evaluation Runs</h3>
+          <div v-if="evaluations.length" class="table-wrapper">
+            <table class="data-table">
               <thead>
-                <tr><th>源名称</th><th>目标类型</th><th>状态</th></tr>
+                <tr><th>ID</th><th>Name</th><th>Agent</th><th>Status</th><th>Score</th><th>Cases</th></tr>
               </thead>
               <tbody>
-                <tr v-for="item in preflightReport.mappings" :key="item.sourceName + item.targetType">
-                  <td>{{ item.sourceName }}</td>
-                  <td>{{ item.targetType }}</td>
-                  <td><span :class="['pill', statusPillClass(item.status)]">{{ item.status }}</span></td>
+                <tr v-for="run in evaluations" :key="run.id">
+                  <td><code>{{ run.id }}</code></td>
+                  <td>{{ run.name }}</td>
+                  <td>{{ run.agentId }}</td>
+                  <td><span :class="['pill', run.status === 'SUCCEEDED' ? 'ready' : 'pending']">{{ run.status }}</span></td>
+                  <td>{{ formatScore(run.score) }}</td>
+                  <td>{{ run.passedCases }}/{{ run.totalCases }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div v-if="preflightReport.risks && preflightReport.risks.length > 0" class="alert-list">
-            <h4>风险项</h4>
-            <div v-for="(risk, index) in preflightReport.risks" :key="'risk-' + index" class="alert-item" :class="risk.level === 'HIGH' ? 'bad' : 'warn'">
-              <strong>[{{ risk.level }}] {{ risk.target }}:</strong> {{ risk.description }}
+          <div v-else class="empty-state">
+            <p class="empty-state-desc">No evaluation runs</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bots -->
+      <section v-if="activeTab === 'bots'" class="content-section">
+        <div class="split-layout">
+          <div class="list-panel">
+            <h3>Enterprise Channel Bindings</h3>
+            <div v-if="botBindings.length" class="list-items">
+              <button
+                v-for="binding in botBindings"
+                :key="binding.id"
+                :class="['list-item', { active: selectedBinding && selectedBinding.id === binding.id }]"
+                @click="selectedBinding = binding"
+              >
+                <strong>{{ binding.channel }} / {{ binding.channelBotId }}</strong>
+                <span>Agent {{ binding.agentId }} / {{ binding.status }}</span>
+              </button>
+            </div>
+            <div v-else class="empty-state">
+              <p class="empty-state-desc">No bot bindings</p>
             </div>
           </div>
-          <div v-if="preflightReport.compatibilityIssues && preflightReport.compatibilityIssues.length > 0" class="alert-list">
-            <h4>兼容性问题</h4>
-            <div v-for="(issue, index) in preflightReport.compatibilityIssues" :key="'compat-' + index" class="alert-item warn">
-              <strong>{{ issue.target }}:</strong> {{ issue.issue }}
+          <div class="detail-panel">
+            <h3>Secret Rotation</h3>
+            <form @submit.prevent="rotateSecret">
+              <label class="form-label">New Webhook Secret</label>
+              <input v-model="newSecret" class="input" type="password" placeholder="New secret" />
+              <button class="btn btn-primary mt-3" type="submit" :disabled="!selectedBinding || !newSecret || !canBotUpdate">
+                Rotate Secret
+              </button>
+            </form>
+            <div v-if="botMessage" class="notice notice-success mt-3">{{ botMessage }}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Audit -->
+      <section v-if="activeTab === 'audit'" class="content-section">
+        <div class="info-card">
+          <h3>LLM Usage Audit</h3>
+          <form class="audit-filters" @submit.prevent="loadAudit">
+            <div class="filter-grid">
+              <div class="filter-group">
+                <label class="filter-label">Agent</label>
+                <input v-model="auditFilters.agentId" class="input" placeholder="Agent ID" />
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Session</label>
+                <input v-model="auditFilters.agentSessionId" class="input" placeholder="Session ID" />
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">Trace</label>
+                <input v-model="auditFilters.traceId" class="input" placeholder="Trace ID" />
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">User</label>
+                <input v-model="auditFilters.userId" class="input" placeholder="User ID" />
+              </div>
             </div>
+            <div class="filter-actions">
+              <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+              <button type="button" class="btn btn-secondary btn-sm" @click="clearAuditFilters">Clear</button>
+            </div>
+          </form>
+          <div class="audit-summary mt-3">
+            <div class="mini-metric"><span>Records</span><strong>{{ llmAuditSummary.recordCount ?? llmAudit.length }}</strong></div>
+            <div class="mini-metric"><span>Prompt Tokens</span><strong>{{ llmAuditSummary.promptTokens || 0 }}</strong></div>
+            <div class="mini-metric"><span>Completion Tokens</span><strong>{{ llmAuditSummary.completionTokens || 0 }}</strong></div>
+            <div class="mini-metric"><span>Total Cost</span><strong>{{ llmAuditSummary.totalCost || 0 }}</strong></div>
+          </div>
+          <div v-if="llmAudit.length" class="table-wrapper mt-3">
+            <table class="data-table">
+              <thead>
+                <tr><th>Time</th><th>Agent</th><th>Step</th><th>Model</th><th>Tokens</th><th>Cost</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in llmAudit" :key="i">
+                  <td>{{ item.createdAt }}</td>
+                  <td>{{ item.agentId || '-' }}</td>
+                  <td>{{ item.agentStepType || '-' }}</td>
+                  <td>{{ item.model || '-' }}</td>
+                  <td>{{ item.totalTokens || 0 }}</td>
+                  <td>{{ item.cost || 0 }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="empty-state">
+            <p class="empty-state-desc">No LLM audit records</p>
           </div>
         </div>
-        <div v-if="migrationError" class="notice bad">{{ migrationError }}</div>
-      </form>
-    </section>
-
-    <section v-if="activeTab === 'dify-results'" class="section">
-      <div class="section-header">
-        <h3>Dify 导入结果</h3>
-        <button type="button" class="secondary" @click="loadDifyResults">刷新</button>
-      </div>
-      <div v-if="importResults.length === 0" class="empty">暂无导入记录，请先在"Dify 导入"页签执行导入。</div>
-      <div v-else class="results-summary">
-        <section class="mini-metric">
-          <span>总数</span>
-          <strong>{{ importResults.length }}</strong>
-        </section>
-        <section class="mini-metric">
-          <span>成功</span>
-          <strong class="ok">{{ importResults.filter(r => r.status === 'SUCCEEDED').length }}</strong>
-        </section>
-        <section class="mini-metric">
-          <span>失败</span>
-          <strong class="bad">{{ importResults.filter(r => r.status === 'FAILED').length }}</strong>
-        </section>
-      </div>
-      <table v-if="importResults.length > 0">
-        <thead>
-          <tr>
-            <th>源名称</th>
-            <th>目标类型</th>
-            <th>源类型</th>
-            <th>状态</th>
-            <th>错误</th>
-            <th>时间</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in importResults" :key="item.id">
-            <td>{{ item.sourceName }}</td>
-            <td>{{ item.targetType }}</td>
-            <td>{{ item.sourceType }}</td>
-            <td><span :class="['pill', statusPillClass(item.status)]">{{ item.status }}</span></td>
-            <td class="clip">{{ item.errorMessage || '-' }}</td>
-            <td>{{ item.createdAt }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section v-if="activeTab === 'delivery-templates'" class="section">
-      <h3>客户交付模板包</h3>
-      <p class="hint">选择版本和格式，下载对应交付模板。ZIP 格式包含部署清单、验收标准和运维手册。</p>
-      <div v-if="templateError" class="notice bad">{{ templateError }}</div>
-      <div class="template-grid">
-        <div v-for="tpl in deliveryTemplates" :key="tpl.id" class="template-card">
-          <h4>{{ tpl.label }}</h4>
-          <p>{{ tpl.description }}</p>
-          <div class="template-actions">
-            <button type="button" class="secondary" @click="downloadTemplate(tpl.id, 'json')">JSON</button>
-            <button type="button" @click="downloadTemplate(tpl.id, 'zip')">ZIP 归档</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'traces'" class="section">
-      <div class="split">
-        <div>
-          <h3>链路追踪</h3>
-          <button
-            v-for="trace in traces"
-            :key="trace.id"
-            type="button"
-            class="list-item"
-            :class="{ active: selectedTrace && selectedTrace.id === trace.id }"
-            @click="selectTrace(trace)"
-          >
-            <strong>{{ trace.name }}</strong>
-            <span>{{ trace.status }} / {{ trace.startedAt }}</span>
-          </button>
-          <div v-if="traces.length === 0" class="empty">暂无链路</div>
-        </div>
-        <div>
-          <h3>步骤记录</h3>
-          <table v-if="traceSteps.length > 0">
-            <thead>
-              <tr>
-                <th>步骤</th>
-                <th>状态</th>
-                <th>Agent</th>
-                <th>输出</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="step in traceSteps" :key="step.id">
-                <td>{{ step.stepKey }}</td>
-                <td>{{ step.status }}</td>
-                <td>{{ step.agentId || '-' }}</td>
-                <td class="clip">{{ step.error || step.output || '-' }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty">选择链路后查看步骤</div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'workflows'" class="section">
-      <div class="split">
-        <div>
-          <h3>工作流</h3>
-          <button
-            v-for="workflow in workflows"
-            :key="workflow.id"
-            type="button"
-            class="list-item"
-            :class="{ active: selectedWorkflow && selectedWorkflow.id === workflow.id }"
-            @click="selectedWorkflow = workflow"
-          >
-            <strong>{{ workflow.name }}</strong>
-            <span>{{ workflow.description || '无描述' }}</span>
-          </button>
-          <div v-if="workflows.length === 0" class="empty">暂无工作流</div>
-        </div>
-        <div>
-          <h3>执行</h3>
-          <form class="settings-form" @submit.prevent="executeWorkflow">
-            <label>输入</label>
-            <textarea v-model="workflowInput" placeholder="工作流输入"></textarea>
-            <button type="submit" :disabled="!selectedWorkflow || !can('workflow:execute')">执行工作流</button>
-          </form>
-          <pre v-if="workflowResult">{{ workflowResult }}</pre>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'evaluations'" class="section">
-      <h3>评估批次</h3>
-      <table v-if="evaluations.length > 0">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>名称</th>
-            <th>Agent</th>
-            <th>状态</th>
-            <th>得分</th>
-            <th>用例</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="run in evaluations" :key="run.id">
-            <td>{{ run.id }}</td>
-            <td>{{ run.name }}</td>
-            <td>{{ run.agentId }}</td>
-            <td>{{ run.status }}</td>
-            <td>{{ formatScore(run.score) }}</td>
-            <td>{{ run.passedCases }}/{{ run.totalCases }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-else class="empty">暂无评估批次</div>
-    </section>
-
-    <section v-if="activeTab === 'bots'" class="section">
-      <div class="split">
-        <div>
-          <h3>企业通道绑定</h3>
-          <button
-            v-for="binding in botBindings"
-            :key="binding.id"
-            type="button"
-            class="list-item"
-            :class="{ active: selectedBinding && selectedBinding.id === binding.id }"
-            @click="selectedBinding = binding"
-          >
-            <strong>{{ binding.channel }} / {{ binding.channelBotId }}</strong>
-            <span>Agent {{ binding.agentId }} / {{ binding.status }}</span>
-          </button>
-          <div v-if="botBindings.length === 0" class="empty">暂无企业通道绑定</div>
-        </div>
-        <div>
-          <h3>密钥轮换</h3>
-          <form class="settings-form" @submit.prevent="rotateSecret">
-            <label>新密钥</label>
-            <input v-model="newSecret" type="password" placeholder="新的 Webhook 密钥" />
-            <button type="submit" :disabled="!selectedBinding || !newSecret || !can('bot:update')">轮换密钥</button>
-          </form>
-          <div v-if="botMessage" class="notice">{{ botMessage }}</div>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="activeTab === 'audit'" class="section">
-      <h3>LLM 用量审计</h3>
-      <form class="audit-filter" @submit.prevent="loadAudit">
-        <label>
-          <span>Agent</span>
-          <input v-model="auditFilters.agentId" placeholder="agentId" />
-        </label>
-        <label>
-          <span>Session</span>
-          <input v-model="auditFilters.agentSessionId" placeholder="agentSessionId" />
-        </label>
-        <label>
-          <span>Trace</span>
-          <input v-model="auditFilters.traceId" placeholder="traceId" />
-        </label>
-        <label>
-          <span>User</span>
-          <input v-model="auditFilters.userId" placeholder="userId" />
-        </label>
-        <div class="filter-actions">
-          <button type="submit">应用过滤</button>
-          <button type="button" class="secondary" @click="clearAuditFilters">清空</button>
-        </div>
-      </form>
-      <div class="audit-summary">
-        <section class="mini-metric">
-          <span>记录数</span>
-          <strong>{{ llmAuditSummary.recordCount ?? llmAudit.length }}</strong>
-        </section>
-        <section class="mini-metric">
-          <span>Prompt Token</span>
-          <strong>{{ llmAuditSummary.promptTokens || 0 }}</strong>
-        </section>
-        <section class="mini-metric">
-          <span>Completion Token</span>
-          <strong>{{ llmAuditSummary.completionTokens || 0 }}</strong>
-        </section>
-        <section class="mini-metric">
-          <span>总成本</span>
-          <strong>{{ llmAuditSummary.totalCost || 0 }}</strong>
-        </section>
-      </div>
-      <table v-if="llmAudit.length > 0">
-        <thead>
-          <tr>
-            <th>时间</th>
-            <th>Agent</th>
-            <th>步骤</th>
-            <th>模型</th>
-            <th>Token</th>
-            <th>成本</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(item, index) in llmAudit" :key="index">
-            <td>{{ item.createdAt }}</td>
-            <td>{{ item.agentId || '-' }}</td>
-            <td>{{ item.agentStepType || '-' }}</td>
-            <td>{{ item.model || '-' }}</td>
-            <td>{{ item.totalTokens || 0 }}</td>
-            <td>{{ item.cost || 0 }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-else class="empty">暂无 LLM 用量记录</div>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
 
 <script>
-import { apiFetch, hasPermission, formatScore } from '../../api';
+import { apiFetch, hasPermission, formatScore, formatDate } from '../../api';
 
 export default {
   props: {
@@ -616,19 +617,18 @@ export default {
     return {
       activeTab: 'overview',
       tabs: [
-        { key: 'overview', label: '概览', permissions: [] },
-        { key: 'readiness', label: '交付就绪', permissions: ['audit:read'] },
-        { key: 'production', label: '生产化', permissions: ['audit:read'] },
-        { key: 'evidence', label: '证据包', permissions: ['audit:read'] },
-        { key: 'dify-import', label: 'Dify 导入', permissions: ['migration:write'] },
-        { key: 'dify-results', label: '导入结果', permissions: ['migration:read'] },
-        { key: 'preflight', label: '迁移检查', permissions: ['migration:write'] },
-        { key: 'delivery-templates', label: '交付模板', permissions: ['audit:read'] },
-        { key: 'traces', label: '链路追踪', permissions: ['trace:read'] },
-        { key: 'workflows', label: '工作流', permissions: ['workflow:read'] },
-        { key: 'evaluations', label: '评估', permissions: ['evaluation:read'] },
-        { key: 'bots', label: '企业通道', permissions: ['bot:read'] },
-        { key: 'audit', label: '用量审计', permissions: ['audit:read'] }
+        { key: 'overview', label: 'Overview', permissions: [] },
+        { key: 'readiness', label: 'Readiness', permissions: ['audit:read'] },
+        { key: 'production', label: 'Production', permissions: ['audit:read'] },
+        { key: 'evidence', label: 'Evidence', permissions: ['audit:read'] },
+        { key: 'dify-import', label: 'Dify Import', permissions: ['migration:write'] },
+        { key: 'dify-results', label: 'Import Results', permissions: ['migration:read'] },
+        { key: 'delivery-templates', label: 'Templates', permissions: ['audit:read'] },
+        { key: 'traces', label: 'Traces', permissions: ['trace:read'] },
+        { key: 'workflows', label: 'Workflows', permissions: ['workflow:read'] },
+        { key: 'evaluations', label: 'Evaluations', permissions: ['evaluation:read'] },
+        { key: 'bots', label: 'Channels', permissions: ['bot:read'] },
+        { key: 'audit', label: 'LLM Audit', permissions: ['audit:read'] }
       ],
       health: {},
       ready: {},
@@ -651,738 +651,866 @@ export default {
       newSecret: '',
       botMessage: '',
       llmAudit: [],
+      llmAuditSummary: {},
       importResults: [],
       migrationError: '',
       deliveryTemplates: [],
       templateError: '',
-      selectedTemplate: 'standard',
-      templateFormat: 'json'
+      auditFilters: { agentId: '', agentSessionId: '', traceId: '', userId: '' },
       preflightReport: null,
-      preflightError: ''
-        agentId: '',
-        agentSessionId: '',
-        traceId: '',
-        userId: ''
-      }
+      preflightError: '',
+      difyPayload: JSON.stringify({ apps: [], workflows: [], tools: [], knowledgeBases: [] }, null, 2)
     };
   },
   computed: {
     visibleTabs() {
-      return this.tabs.filter(tab => tab.permissions.length === 0 || tab.permissions.some(permission => this.can(permission)));
+      return this.tabs.filter(tab => tab.permissions.length === 0 || tab.permissions.some(p => this.can(p)));
+    },
+    canWorkflowExecute() {
+      return this.can('workflow:execute');
+    },
+    canBotUpdate() {
+      return this.can('bot:update');
     }
   },
   async created() {
     await this.refreshAll();
   },
   methods: {
-    can(permission) {
-      return hasPermission(this.user, permission);
-    },
+    can(p) { return hasPermission(this.user, p); },
     async refreshAll() {
       await Promise.all([
         this.loadHealth(),
-        this.can('audit:read') ? this.loadSummary() : Promise.resolve(),
-        this.can('audit:read') ? this.loadReadiness() : Promise.resolve(),
-        this.can('audit:read') ? this.loadProductionReadiness() : Promise.resolve(),
-        this.can('audit:read') ? this.loadDeliveryEvidence() : Promise.resolve(),
-        this.can('migration:read') ? this.loadDifyResults() : Promise.resolve(),
-        this.can('audit:read') ? this.loadDeliveryTemplates() : Promise.resolve(),
-        this.can('trace:read') ? this.loadTraces() : Promise.resolve(),
-        this.can('workflow:read') ? this.loadWorkflows() : Promise.resolve(),
-        this.can('evaluation:read') ? this.loadEvaluations() : Promise.resolve(),
-        this.can('bot:read') ? this.loadBotBindings() : Promise.resolve(),
-        this.can('audit:read') ? this.loadAudit() : Promise.resolve()
+        this.can('audit:read') ? this.loadSummary() : 0,
+        this.can('audit:read') ? this.loadReadiness() : 0,
+        this.can('audit:read') ? this.loadProductionReadiness() : 0,
+        this.can('audit:read') ? this.loadDeliveryEvidence() : 0,
+        this.can('migration:read') ? this.loadDifyResults() : 0,
+        this.can('audit:read') ? this.loadDeliveryTemplates() : 0,
+        this.can('trace:read') ? this.loadTraces() : 0,
+        this.can('workflow:read') ? this.loadWorkflows() : 0,
+        this.can('evaluation:read') ? this.loadEvaluations() : 0,
+        this.can('bot:read') ? this.loadBotBindings() : 0,
+        this.can('audit:read') ? this.loadAudit() : 0
       ]);
     },
     async loadHealth() {
-      const [health, ready] = await Promise.all([
-        apiFetch('/api/health'),
-        apiFetch('/api/health/ready')
-      ]);
-      this.health = health.ok ? await health.json() : {};
-      this.ready = ready.ok ? await ready.json() : {};
+      const [h, r] = await Promise.all([apiFetch('/api/health'), apiFetch('/api/health/ready')]);
+      this.health = h.ok ? await h.json() : {};
+      this.ready = r.ok ? await r.json() : {};
     },
     async loadSummary() {
-      const response = await apiFetch('/api/observability/summary');
-      this.summary = response.ok ? await response.json() : {};
+      const r = await apiFetch('/api/observability/summary');
+      this.summary = r.ok ? await r.json() : {};
     },
     async loadReadiness() {
-      const response = await apiFetch('/api/observability/delivery-readiness');
-      this.readiness = response.ok ? await response.json() : {};
+      const r = await apiFetch('/api/observability/delivery-readiness');
+      this.readiness = r.ok ? await r.json() : {};
     },
     async loadProductionReadiness() {
-      const response = await apiFetch('/api/observability/production-readiness');
-      this.productionReadiness = response.ok ? await response.json() : {};
+      const r = await apiFetch('/api/observability/production-readiness');
+      this.productionReadiness = r.ok ? await r.json() : {};
     },
     async loadDeliveryEvidence() {
-      const response = await apiFetch('/api/observability/delivery-evidence');
-      this.deliveryEvidence = response.ok ? await response.json() : {};
+      const r = await apiFetch('/api/observability/delivery-evidence');
+      this.deliveryEvidence = r.ok ? await r.json() : {};
     },
-    downloadDeliveryEvidence(format) {
-      const isZip = format === 'zip';
-      const endpoint = isZip
-        ? '/api/observability/delivery-evidence/export'
-        : '/api/observability/delivery-evidence';
-      const suffix = isZip ? 'zip' : 'json';
-      const mimeType = isZip ? 'application/zip' : 'application/json';
-
-      apiFetch(endpoint).then(async (response) => {
-        if (!response.ok) {
-          throw new Error(isZip ? '归档导出失败' : 'JSON 下载失败');
-        }
-        const blob = await response.blob();
-        const generatedAt = String(this.deliveryEvidence.generatedAt || new Date().toISOString())
-          .replace(/[:.]/g, '-');
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `agenthub-delivery-evidence-${generatedAt}.${suffix}`;
-        document.body.appendChild(link);
-        link.click();
-        URL.revokeObjectURL(link.href);
-        document.body.removeChild(link);
-      }).catch((error) => {
-        // fallback: download JSON from cached data when ZIP endpoint is unavailable
-        if (!isZip) return;
-        const payload = JSON.stringify(this.deliveryEvidence || {}, null, 2);
-        const blob = new Blob([payload], { type: 'application/json' });
-        const generatedAt = String(this.deliveryEvidence.generatedAt || new Date().toISOString())
-          .replace(/[:.]/g, '-');
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `agenthub-delivery-evidence-${generatedAt}.json`;
-        document.body.appendChild(link);
-        link.click();
-        URL.revokeObjectURL(link.href);
-        document.body.removeChild(link);
+    async loadTraces() {
+      const r = await apiFetch('/api/traces');
+      this.traces = r.ok ? await r.json() : [];
+    },
+    async selectTrace(trace) {
+      this.selectedTrace = trace;
+      const r = await apiFetch(`/api/traces/${trace.id}/steps`);
+      this.traceSteps = r.ok ? await r.json() : [];
+    },
+    async loadWorkflows() {
+      const r = await apiFetch('/api/workflows');
+      this.workflows = r.ok ? await r.json() : [];
+    },
+    async executeWorkflow() {
+      if (!this.selectedWorkflow || !this.canWorkflowExecute) return;
+      const r = await apiFetch(`/api/workflows/${this.selectedWorkflow.id}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: this.workflowInput })
       });
+      this.workflowResult = r.ok ? JSON.stringify(await r.json(), null, 2) : 'Failed';
+      await Promise.all([this.loadTraces(), this.loadSummary()]);
+    },
+    async loadEvaluations() {
+      const r = await apiFetch('/api/evaluations/runs');
+      this.evaluations = r.ok ? await r.json() : [];
+    },
+    async loadBotBindings() {
+      const r = await apiFetch('/api/bots/bindings');
+      this.botBindings = r.ok ? await r.json() : [];
+    },
+    async rotateSecret() {
+      if (!this.selectedBinding || !this.newSecret || !this.canBotUpdate) return;
+      const r = await apiFetch(`/api/bots/bindings/${this.selectedBinding.id}/rotate-secret`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newSecret: this.newSecret })
+      });
+      this.botMessage = r.ok ? 'Secret rotated' : 'Failed';
+      this.newSecret = '';
+      await this.loadBotBindings();
+    },
+    async loadAudit() {
+      const q = this.auditQuery();
+      const [records, summary] = await Promise.all([
+        apiFetch(`/api/audit/llm-usage${q}`),
+        apiFetch(`/api/audit/llm-usage/summary${q}`)
+      ]);
+      this.llmAudit = records.ok ? await records.json() : [];
+      this.llmAuditSummary = summary.ok ? await summary.json() : {};
+    },
+    async loadDifyResults() {
+      const r = await apiFetch('/api/migrations/dify/results');
+      this.importResults = r.ok ? await r.json() : [];
+    },
+    async loadDeliveryTemplates() {
+      const r = await apiFetch('/api/delivery/templates/list');
+      this.deliveryTemplates = r.ok ? await r.json() : [];
+      this.templateError = r.ok ? '' : 'Failed to load templates';
+    },
+    async runPreflight() {
+      this.preflightError = '';
+      try {
+        const payload = JSON.parse(this.difyPayload);
+        const r = await apiFetch('/api/migrations/dify/preflight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!r.ok) throw new Error('Preflight failed');
+        this.preflightReport = await r.json();
+      } catch (e) {
+        this.preflightError = e.message || 'Preflight failed';
+      }
+    },
+    async runImport() {
+      this.migrationError = '';
+      try {
+        const payload = JSON.parse(this.difyPayload);
+        const r = await apiFetch('/api/migrations/dify/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!r.ok) throw new Error('Import failed');
+        await this.loadDifyResults();
+        this.difyPayload = JSON.stringify({ apps: [], workflows: [], tools: [], knowledgeBases: [] }, null, 2);
+        this.activeTab = 'dify-results';
+        await this.refreshAll();
+      } catch (e) {
+        this.migrationError = e.message || 'Import failed';
+      }
     },
     async seedDemoData() {
       if (this.seedBusy) return;
       this.seedBusy = true;
       this.seedMessage = '';
       try {
-        const suffix = Date.now();
+        const base = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8080';
+        const headers = { 'Content-Type': 'application/json' };
         const agent = await this.postJson('/api/agents', {
-          name: `dify-demo-agent-${suffix}`,
-          description: 'Dify 替代迁移演示 Agent',
-          prompt: '你是企业知识库和工具编排助手。',
-          model: 'gpt-4o-mini',
-          temperature: 0.2
+          name: `demo-agent-${Date.now()}`, description: 'Demo agent', prompt: 'You are a helpful assistant.',
+          model: 'gpt-4o-mini', temperature: 0.2
         });
-        const func = await this.postJson('/api/functions', {
-          name: `health_check_${suffix}`,
-          description: '演示工具：读取 AgentHub 健康状态',
-          endpoint: `${this.backendBaseUrl()}/api/health`,
-          method: 'GET',
-          parameters: { type: 'object' }
+        await this.postJson('/api/functions', {
+          name: `health_check_${Date.now()}`, description: 'Health check',
+          endpoint: `${base}/api/health`, method: 'GET', parameters: { type: 'object' }
         });
-        await this.postJson(`/api/functions/${func.id}/invoke`, { input: {} });
+        await this.postJson('/api/functions/${func.id}/invoke', { input: {} });
         const kb = await this.postJson('/api/knowledge-bases', {
-          name: `dify-demo-kb-${suffix}`,
-          description: 'Dify 替代演示知识库'
+          name: `demo-kb-${Date.now()}`, description: 'Demo KB'
         });
         const doc = await this.postJson(`/api/knowledge-bases/${kb.id}/documents`, {
-          title: '迁移验收说明',
-          sourceUri: 'demo://dify-replacement',
-          mimeType: 'text/plain'
+          title: 'Demo doc', sourceUri: 'demo://', mimeType: 'text/plain'
         });
         await this.postJson(`/api/knowledge-bases/${kb.id}/documents/${doc.id}/chunks`, {
-          content: 'AgentHub 交付验收关注多租户隔离、工具调用审计、RAG 检索和 Trace 追踪。',
-          chunkIndex: 0
+          content: 'Demo chunk content.', chunkIndex: 0
         });
         await this.postJson('/api/workflows', {
-          name: `dify-demo-workflow-${suffix}`,
-          description: 'Dify 替代演示工作流',
-          definition: { nodes: [{ id: 'agent-summary', agentId: String(agent.id), timeoutMs: 30000 }] }
+          name: `demo-wf-${Date.now()}`, description: 'Demo workflow',
+          definition: { nodes: [{ id: 'n1', agentId: String(agent.id) }] }
         });
         await this.postJson('/api/bots/bindings', {
-          channel: 'webhook',
-          channelBotId: `demo-bot-${suffix}`,
-          agentId: String(agent.id),
-          secret: 'demo-secret'
+          channel: 'webhook', channelBotId: `demo-bot-${Date.now()}`,
+          agentId: String(agent.id), secret: 'demo-secret'
         });
-        this.seedMessage = '演示数据已生成，交付就绪度已刷新。';
+        this.seedMessage = 'Demo data generated.';
         await this.refreshAll();
         this.activeTab = 'evidence';
-      } catch (error) {
-        this.seedMessage = error.message || '演示数据生成失败';
+      } catch (e) {
+        this.seedMessage = e.message || 'Failed to seed';
       } finally {
         this.seedBusy = false;
       }
     },
     async postJson(url, payload) {
-      const response = await apiFetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `${url} failed`);
-      }
-      return response.json();
+      const r = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!r.ok) throw new Error(`${url} failed`);
+      return r.json();
     },
-    backendBaseUrl() {
-      return import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8080';
-    },
-    async loadTraces() {
-      const response = await apiFetch('/api/traces');
-      this.traces = response.ok ? await response.json() : [];
-    },
-    async selectTrace(trace) {
-      this.selectedTrace = trace;
-      const response = await apiFetch(`/api/traces/${trace.id}/steps`);
-      this.traceSteps = response.ok ? await response.json() : [];
-    },
-    async loadWorkflows() {
-      const response = await apiFetch('/api/workflows');
-      this.workflows = response.ok ? await response.json() : [];
-    },
-    async executeWorkflow() {
-      if (!this.selectedWorkflow || !this.can('workflow:execute')) return;
-      const response = await apiFetch(`/api/workflows/${this.selectedWorkflow.id}/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: this.workflowInput })
-      });
-      this.workflowResult = response.ok
-        ? JSON.stringify(await response.json(), null, 2)
-        : '工作流执行失败';
-      await Promise.all([this.loadTraces(), this.loadSummary()]);
-    },
-    async loadEvaluations() {
-      const response = await apiFetch('/api/evaluations/runs');
-      this.evaluations = response.ok ? await response.json() : [];
-    },
-    async loadBotBindings() {
-      const response = await apiFetch('/api/bots/bindings');
-      this.botBindings = response.ok ? await response.json() : [];
-    },
-    async rotateSecret() {
-      if (!this.selectedBinding || !this.newSecret || !this.can('bot:update')) return;
-      const response = await apiFetch(`/api/bots/bindings/${this.selectedBinding.id}/rotate-secret`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newSecret: this.newSecret })
-      });
-      this.botMessage = response.ok ? '密钥已轮换' : '密钥轮换失败';
-      this.newSecret = '';
-      await this.loadBotBindings();
-    },
-    async loadAudit() {
-      const query = this.auditQuery();
-      const [records, summary] = await Promise.all([
-        apiFetch(`/api/audit/llm-usage${query}`),
-        apiFetch(`/api/audit/llm-usage/summary${query}`)
-      ]);
-      this.llmAudit = records.ok ? await records.json() : [];
-      this.llmAuditSummary = summary.ok ? await summary.json() : {};
-    },
-    async loadDifyResults() {
-      const response = await apiFetch('/api/migrations/dify/results');
-      this.importResults = response.ok ? await response.json() : [];
-    },
-    async runDifyImport() {
-      this.migrationError = '';
-      try {
-        const payload = JSON.parse(this.difyPayload);
-        const response = await apiFetch('/api/migrations/dify/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || 'Dify 导入失败');
-        }
-        const result = await response.json();
-        this.migrationError = '';
-        this.difyPayload = JSON.stringify({ apps: [], workflows: [], tools: [], knowledgeBases: [] }, null, 2);
-        await this.loadDifyResults();
-        await this.refreshAll();
-        this.activeTab = 'dify-results';
-      } catch (error) {
-        this.migrationError = error.message || 'Dify 导入失败';
-      }
-    },
-    async runPreflight() {
-      this.preflightError = '';
-      try {
-        const payload = JSON.parse(this.difyPayload);
-        const response = await apiFetch('/api/migrations/dify/preflight', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || '前置检查失败');
-        }
-        this.preflightReport = await response.json();
-        this.preflightError = '';
-      } catch (error) {
-        this.preflightError = error.message || '前置检查失败';
-      }
-    },
-    statusPillClass(status) {
-      if (!status) return 'pending';
-      const upper = String(status).toUpperCase();
-      if (upper === 'SUCCEEDED' || upper === 'READY' || upper === 'DONE') return 'ready';
-      if (upper === 'FAILED' || upper === 'BLOCKED' || upper === 'PENDING') return 'pending';
-      return 'pending';
-    },
-    async loadDeliveryTemplates() {
-      const response = await apiFetch('/api/delivery/templates/list');
-      this.deliveryTemplates = response.ok ? await response.json() : [];
-    },
-    downloadTemplate(edition, format) {
-      const url = `/api/delivery/templates?edition=${edition}&format=${format}`;
-      apiFetch(url).then(async (response) => {
-        if (!response.ok) {
-          throw new Error('模板下载失败');
-        }
-        const blob = await response.blob();
+    downloadEvidence(format) {
+      const isZip = format === 'zip';
+      const url = isZip ? '/api/observability/delivery-evidence/export' : '/api/observability/delivery-evidence';
+      apiFetch(url).then(async r => {
+        if (!r.ok) throw new Error('Download failed');
+        const blob = await r.blob();
+        const suffix = isZip ? 'zip' : 'json';
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `agenthub-delivery-${edition}-${new Date().toISOString().replace(/[:.]/g, '-')}.${format === 'zip' ? 'zip' : 'json'}`;
-        document.body.appendChild(link);
+        link.download = `agenthub-evidence-${new Date().toISOString().replace(/[:.]/g, '-')}.${suffix}`;
         link.click();
         URL.revokeObjectURL(link.href);
-        document.body.removeChild(link);
-      }).catch((error) => {
-        this.templateError = error.message || '模板下载失败';
-      });
-    }
-    clearAuditFilters() {
-      this.auditFilters = {
-        agentId: '',
-        agentSessionId: '',
-        traceId: '',
-        userId: ''
-      };
-      return this.loadAudit();
+      }).catch(e => { /* silent */ });
+    },
+    downloadTemplate(id, format) {
+      const url = `/api/delivery/templates?edition=${id}&format=${format}`;
+      apiFetch(url).then(async r => {
+        if (!r.ok) throw new Error('Download failed');
+        const blob = await r.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `agenthub-template-${id}-${new Date().toISOString().replace(/[:.]/g, '-')}.${format === 'zip' ? 'zip' : 'json'}`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }).catch(e => { this.templateError = e.message; });
     },
     auditQuery() {
-      const params = new URLSearchParams();
-      Object.entries(this.auditFilters).forEach(([key, value]) => {
-        const text = String(value || '').trim();
-        if (text) {
-          params.set(key, text);
-        }
-      });
-      const query = params.toString();
-      return query ? `?${query}` : '';
+      const p = new URLSearchParams();
+      Object.entries(this.auditFilters).forEach(([k, v]) => { const t = String(v || '').trim(); if (t) p.set(k, t); });
+      const q = p.toString();
+      return q ? `?${q}` : '';
     },
-    statusClass(status) {
-      return status === 'UP' ? 'ok' : 'bad';
+    clearAuditFilters() {
+      this.auditFilters = { agentId: '', agentSessionId: '', traceId: '', userId: '' };
+      this.loadAudit();
     },
-    joinList(values) {
-      return values && values.length > 0 ? values.join(', ') : '-';
-    }
+    statusClass(status) { return status === 'UP' ? 'ok' : 'bad'; },
+    statusPillClass(s) {
+      const u = String(s || '').toUpperCase();
+      return ['SUCCEEDED', 'READY', 'DONE'].includes(u) ? 'ready' : 'pending';
+    },
+    joinList(v) { return v?.length ? v.join(', ') : '-'; },
+    formatScore
   }
 };
 </script>
 
 <style scoped>
 .admin-console {
-  padding: 24px;
+  padding: var(--sp-6);
+  max-width: 1600px;
 }
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-.page-header h2,
-.page-header p {
-  margin: 0;
-}
-.page-header h2 {
-  font-size: 22px;
-}
-.page-header p {
-  margin-top: 5px;
-  color: var(--text-muted);
-}
-.header-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.status-grid {
+
+/* ── Metrics Grid ────────────────────────────────────────── */
+.metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
 }
-.metric {
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-}
-.metric span,
-.metric strong,
-.metric small {
-  display: block;
-}
-.metric span {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.metric strong {
-  margin-top: 6px;
-  font-size: 22px;
-  line-height: 28px;
-}
-.metric small {
-  margin-top: 4px;
-  color: var(--text-soft);
-  font-size: 12px;
-}
-.metric strong.ok {
-  color: var(--success);
-}
-.metric strong.bad {
-  color: var(--danger);
-}
-.tabs {
+
+.metric-card {
   display: flex;
-  gap: 6px;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--duration-normal);
+}
+
+.metric-card:hover {
+  border-color: var(--border-strong);
+}
+
+.metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.metric-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.metric-label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--sp-1);
+}
+
+.metric-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.metric-value.ok { color: var(--success); }
+.metric-value.bad { color: var(--danger); }
+
+.metric-detail {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* ── Tabs ────────────────────────────────────────────────── */
+.tab-bar-wrapper {
+  margin-bottom: var(--sp-5);
   overflow-x: auto;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--surface);
 }
-button {
-  min-height: 36px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 5px;
-  background: var(--primary);
-  color: #fff;
-  cursor: pointer;
-  font-weight: 700;
-}
-button.secondary,
-.tabs button {
-  background: transparent;
-  color: var(--text);
-}
-button.secondary {
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-.tabs button.active,
-button:hover {
-  background: var(--primary-strong);
-  color: #fff;
-}
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-.section {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-}
-.section h3 {
-  margin: 0 0 12px;
-  font-size: 15px;
-}
-.section-grid,
-.split {
-  display: grid;
-  grid-template-columns: minmax(280px, 420px) minmax(420px, 1fr);
-  gap: 18px;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th,
-td {
-  padding: 9px 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-}
-th {
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-.settings-form {
-  display: grid;
-  gap: 8px;
-}
-.audit-filter {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-.audit-filter label {
-  display: grid;
-  gap: 5px;
-}
-.audit-filter span {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.filter-actions {
+
+.tab-bar {
   display: flex;
-  gap: 8px;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+  width: fit-content;
+  min-width: 100%;
 }
-.audit-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
-  gap: 10px;
-  margin-bottom: 12px;
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.mini-metric {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-muted);
+
+.tab-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
 }
-.mini-metric span,
-.mini-metric strong {
-  display: block;
-}
-.mini-metric span {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.mini-metric strong {
-  margin-top: 4px;
-  font-size: 18px;
-}
-label {
-  font-weight: 700;
-}
-input,
-textarea {
-  width: 100%;
-  min-height: 36px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--surface);
-}
-textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-.list-item {
-  display: block;
-  width: 100%;
-  margin-bottom: 8px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  text-align: left;
-  border-radius: 6px;
+
+.tab-btn.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
-.list-item.active {
-  border-color: var(--primary);
-  background: var(--primary-soft);
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
 }
-.list-item strong,
-.list-item span {
+
+/* ── Tab Content ─────────────────────────────────────────── */
+.tab-content {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.content-section {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  gap: var(--sp-5);
+}
+
+.info-card h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--sp-4);
+}
+
+.info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-2-5) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-key {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+.info-val {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: right;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-val.ok { color: var(--success); }
+.info-val.bad { color: var(--danger); }
+.clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Readiness ───────────────────────────────────────────── */
+.readiness-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.readiness-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2-5) var(--sp-3);
+  background: var(--bg-overlay);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.readiness-domain {
+  flex: 1;
+  font-weight: 500;
+}
+
+.readiness-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--bg-overlay);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.action-item strong {
   display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
 }
-.list-item span {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
+
+.action-item span {
+  color: var(--text-tertiary);
 }
-.empty,
-.notice {
-  padding: 14px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 6px;
-  background: var(--surface-muted);
-  color: var(--text-muted);
+
+.action-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
+
+/* ── Shared Elements ─────────────────────────────────────── */
 .pill {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
   padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
+
 .pill.ready {
   background: var(--success-soft);
   color: var(--success);
 }
+
 .pill.pending {
   background: var(--danger-soft);
   color: var(--danger);
 }
-.readiness-action {
-  margin-bottom: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-muted);
-  color: var(--text);
-}
-.readiness-action strong,
-.readiness-action span {
-  display: block;
-}
-.readiness-action span {
-  margin-top: 4px;
-  color: var(--text-muted);
-}
-.notice {
-  margin-top: 12px;
-  border-style: solid;
-}
-.evidence-download {
-  margin-top: 12px;
-}
-.evidence-actions {
-  margin-top: 12px;
+
+.btn-row {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: var(--sp-3);
 }
-.dify-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-.hint {
-  color: var(--text-muted);
-  font-size: 13px;
-  margin-bottom: 10px;
-}
-.section-header {
+
+.mt-3 { margin-top: var(--sp-3); }
+.mt-4 { margin-top: var(--sp-4); }
+
+.section-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--sp-4);
 }
-.preflight-result {
-  margin-top: 12px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface-muted);
+
+.section-hint {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  margin-bottom: var(--sp-4);
 }
-.preflight-result h4 {
-  margin: 0 0 10px;
-  font-size: 13px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+
+.import-textarea {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
 }
+
+.preflight-panel {
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+}
+
+.preflight-panel h4 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: var(--sp-3);
+}
+
 .preflight-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
 }
+
+.mini-metric {
+  padding: var(--sp-2-5) var(--sp-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+}
+
+.mini-metric span {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+
+.mini-metric strong {
+  display: block;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
 .alert-list {
-  margin-top: 10px;
+  margin-top: var(--sp-3);
 }
-.alert-list h4 {
-  margin: 0 0 6px;
-  font-size: 12px;
-  color: var(--text-muted);
+
+.alert-list h5 {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--sp-2);
 }
+
 .alert-item {
-  padding: 8px 10px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  font-size: 13px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  margin-bottom: var(--sp-1-5);
 }
+
 .alert-item.bad {
-  background: #fff1f0;
-  color: #cf1322;
-  border: 1px solid #ffa39e;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid rgba(248, 113, 113, 0.15);
 }
+
 .alert-item.warn {
-  background: #fffbe6;
-  color: #d48806;
-  border: 1px solid #ffe58f;
+  background: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid rgba(251, 191, 36, 0.15);
 }
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.template-card {
+  padding: var(--sp-4);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+}
+
+.template-card h4 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: var(--sp-2);
+}
+
+.template-card p {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  line-height: var(--leading-normal);
+  margin-bottom: var(--sp-3);
+}
+
+.template-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
 .results-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(80px, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
 }
-.template-grid {
+
+/* ── Split Layout ────────────────────────────────────────── */
+.split-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-  margin-top: 12px;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: var(--sp-5);
 }
-.template-card {
-  padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
+
+.list-panel h3,
+.detail-panel h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  margin-bottom: var(--sp-3);
 }
-.template-card h4 {
-  margin: 0 0 8px;
-  font-size: 15px;
-}
-.template-card p {
-  margin: 0 0 12px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-.template-actions {
+
+.list-items {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
 }
-table.compact {
-  font-size: 12px;
+
+.list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  text-align: left;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--duration-fast);
 }
-table.compact th,
-table.compact td {
-  padding: 5px 6px;
+
+.list-item:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
 }
-.clip {
-  max-width: 420px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+
+.list-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
-pre {
-  max-height: 360px;
-  overflow: auto;
-  padding: 12px;
-  border-radius: 6px;
-  background: #101820;
-  color: #edf2f7;
+
+.list-item strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
 }
+
+.list-item span {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.result-block {
+  margin-top: var(--sp-4);
+}
+
+.result-block h4 {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--sp-2);
+}
+
+.result-block pre {
+  padding: var(--sp-4);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  overflow-x: auto;
+  max-height: 400px;
+}
+
+/* ── Audit Filters ───────────────────────────────────────── */
+.audit-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-base);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: var(--sp-3);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.filter-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.filter-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.audit-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(100px, 1fr));
+  gap: var(--sp-2);
+}
+
+.notice {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.notice-info { background: var(--info-soft); border: 1px solid rgba(96, 165, 250, 0.15); color: var(--info); }
+.notice-danger { background: var(--danger-soft); border: 1px solid rgba(248, 113, 113, 0.15); color: var(--danger); }
+.notice-success { background: var(--success-soft); border: 1px solid rgba(45, 212, 168, 0.15); color: var(--success); }
+
+.priority-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.priority-badge.p-high {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.priority-badge.p-medium {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.priority-badge.p-low {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.form-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-1-5);
+}
+
+.danger-hover:hover {
+  color: var(--danger) !important;
+  background: var(--danger-soft) !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 1100px) {
-  .status-grid,
-  .audit-filter,
-  .audit-summary,
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
   .section-grid,
-  .split {
+  .split-layout {
     grid-template-columns: 1fr;
+  }
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+  .audit-summary {
+    grid-template-columns: repeat(2, minmax(100px, 1fr));
   }
 }
 </style>
