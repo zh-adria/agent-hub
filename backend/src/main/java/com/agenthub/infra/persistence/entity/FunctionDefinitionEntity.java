@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "function_definition")
+@Table(name = "ah_function_definition")
 public class FunctionDefinitionEntity {
 
     @Id

@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://mysql:3306/agent_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
-    username: root
-    password: root
+    url: jdbc:mysql://mysql6.sqlpub.com:3311/dev_2026?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: dev_2026
+    password: uF5RbUeRzGxb9qgG
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -20,10 +20,6 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
     show-sql: false
-  redis:
-    host: redis
-    port: 6379
-    timeout: 3000ms
 
 token-router:
   base-url: http://host.docker.internal:8082
@@ -31,6 +27,9 @@ token-router:
   stream-completion-path: /api/chat/completions/stream
 
 agenthub:
+  db:
+    encryption:
+      key: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
   identity:
     provider: logto
     logto:
@@ -46,3 +45,23 @@ agenthub:
       base-url: http://host.docker.internal:8080/iam
       client-id: demo-client
       client-secret: demo-secret
+  ai:
+    embedding:
+      external-enabled: true
+      url:
+      provider: llm-gateway
+      model: text-embedding
+      timeout-ms: 3000
+      fallback-on-failure: true
+    rerank:
+      external-enabled: true
+      url:
+      model: rerank-default
+      timeout-ms: 3000
+      fallback-on-failure: true
+    milvus:
+      enabled: true
+      url: http://milvus-adapter:8080
+      collection-prefix: agenthub
+      timeout-ms: 3000
+      fallback-on-failure: true

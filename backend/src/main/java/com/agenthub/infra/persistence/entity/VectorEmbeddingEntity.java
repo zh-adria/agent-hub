@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "vector_embedding")
+@Table(name = "ah_vector_embedding")
 public class VectorEmbeddingEntity {
 
     @Id

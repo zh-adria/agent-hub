@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "trace")
+@Table(name = "ah_trace")
 public class TraceEntity {
     @Id
     @Column(name = "id", length = 64)

@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: ${AGENTHUB_MYSQL_URL:jdbc:mysql://mysql:3306/agent_hub?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC}
-    username: ${AGENTHUB_MYSQL_USERNAME:agenthub}
-    password: ${AGENTHUB_MYSQL_PASSWORD:agenthub}
+    url: jdbc:mysql://mysql6.sqlpub.com:3311/dev_2026?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: dev_2026
+    password: uF5RbUeRzGxb9qgG
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: ${AGENTHUB_MYSQL_POOL_MAX:20}
@@ -35,6 +35,9 @@ token-router:
   stream-completion-path: ${TOKEN_ROUTER_STREAM_COMPLETION_PATH:/api/chat/completions/stream}
 
 agenthub:
+  db:
+    encryption:
+      key: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
   identity:
     provider: logto
     logto:

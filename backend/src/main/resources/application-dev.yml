@@ -3,22 +3,28 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:agenthub-dev;DB_CLOSE_DELAY=-1;MODE=MySQL
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
+    url: jdbc:mysql://mysql6.sqlpub.com:3311/dev_2026?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: dev_2026
+    password: uF5RbUeRzGxb9qgG
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        format_sql: false
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
     show-sql: false
+
   sql:
     init:
       mode: never
+
   redis:
     host: localhost
     port: 6379
@@ -30,17 +36,32 @@ token-router:
   stream-completion-path: /api/chat/completions/stream
 
 agenthub:
+  db:
+    encryption:
+      key: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
   identity:
     provider: mock
-    logto:
-      issuer: https://your-tenant.logto.app
-      client-id: ""
-      client-secret: ""
-      expected-audience: ""
-      enable-userinfo-fallback: true
-      fallback-to-scope-only: false
-      jwks-cache-ttl-ms: 3600000
     iam:
       base-url: http://127.0.0.1:8080/iam
       client-id: demo-client
       client-secret: demo-secret
+  ai:
+    embedding:
+      external-enabled: false
+      url:
+      provider: llm-gateway
+      model: text-embedding
+      timeout-ms: 3000
+      fallback-on-failure: true
+    rerank:
+      external-enabled: false
+      url:
+      model: rerank-default
+      timeout-ms: 3000
+      fallback-on-failure: true
+    milvus:
+      enabled: false
+      url:
+      collection-prefix: agenthub
+      timeout-ms: 3000
+      fallback-on-failure: true

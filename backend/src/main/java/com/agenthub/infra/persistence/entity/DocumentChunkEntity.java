@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "document_chunk")
+@Table(name = "ah_document_chunk")
 public class DocumentChunkEntity {
 
     @Id

@@ -1,9 +1,10 @@
 -- AgentHub Database Schema
 -- Phase 1: Core Tables with Audit Fields
+-- Table prefix: ah_
 -- =============================================
 
 -- 租户表
-CREATE TABLE IF NOT EXISTS tenant (
+CREATE TABLE IF NOT EXISTS ah_tenant (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(128) NOT NULL,
     code VARCHAR(64) UNIQUE NOT NULL,
@@ -13,12 +14,12 @@ CREATE TABLE IF NOT EXISTS tenant (
     updated_by VARCHAR(64) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_tenant_status (status),
-    INDEX idx_tenant_code (code)
+    INDEX idx_ah_tenant_status (status),
+    INDEX idx_ah_tenant_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='租户表';
 
 -- 用户表
-CREATE TABLE IF NOT EXISTS user_account (
+CREATE TABLE IF NOT EXISTS ah_user_account (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     username VARCHAR(64) NOT NULL,
@@ -34,11 +35,11 @@ CREATE TABLE IF NOT EXISTS user_account (
     UNIQUE KEY uk_user_tenant_username (tenant_id, username),
     INDEX idx_user_tenant (tenant_id),
     INDEX idx_user_email (email),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- Agent 定义表
-CREATE TABLE IF NOT EXISTS agent (
+CREATE TABLE IF NOT EXISTS ah_agent (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -59,11 +60,11 @@ CREATE TABLE IF NOT EXISTS agent (
     INDEX idx_agent_tenant (tenant_id),
     INDEX idx_agent_status (status),
     INDEX idx_agent_provider_model (llm_provider, llm_model),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Agent定义表';
 
 -- Agent 版本表
-CREATE TABLE IF NOT EXISTS agent_version (
+CREATE TABLE IF NOT EXISTS ah_agent_version (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     agent_id BIGINT NOT NULL,
     tenant_id BIGINT NOT NULL,
@@ -74,11 +75,11 @@ CREATE TABLE IF NOT EXISTS agent_version (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_agent_version_agent (agent_id),
     INDEX idx_agent_version_tenant (tenant_id),
-    FOREIGN KEY (agent_id) REFERENCES agent(id)
+    FOREIGN KEY (agent_id) REFERENCES ah_agent(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Agent版本快照表';
 
 -- 函数定义表
-CREATE TABLE IF NOT EXISTS function_definition (
+CREATE TABLE IF NOT EXISTS ah_function_definition (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -102,11 +103,11 @@ CREATE TABLE IF NOT EXISTS function_definition (
     UNIQUE KEY uk_func_tenant_name (tenant_id, name),
     INDEX idx_func_tenant (tenant_id),
     INDEX idx_func_status (status),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='函数定义表';
 
 -- 函数权限表
-CREATE TABLE IF NOT EXISTS function_permission (
+CREATE TABLE IF NOT EXISTS ah_function_permission (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     function_id BIGINT NOT NULL,
@@ -120,12 +121,12 @@ CREATE TABLE IF NOT EXISTS function_permission (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_func_perm (tenant_id, function_id),
     INDEX idx_func_perm_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (function_id) REFERENCES function_definition(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (function_id) REFERENCES ah_function_definition(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='函数权限控制表';
 
 -- 会话表
-CREATE TABLE IF NOT EXISTS session (
+CREATE TABLE IF NOT EXISTS ah_session (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id BIGINT NOT NULL,
     agent_id BIGINT NOT NULL,
@@ -146,13 +147,13 @@ CREATE TABLE IF NOT EXISTS session (
     INDEX idx_session_user (user_id),
     INDEX idx_session_state (state),
     INDEX idx_session_created (created_at),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (agent_id) REFERENCES agent(id),
-    FOREIGN KEY (user_id) REFERENCES user_account(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (agent_id) REFERENCES ah_agent(id),
+    FOREIGN KEY (user_id) REFERENCES ah_user_account(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会话表';
 
 -- 审计日志表
-CREATE TABLE IF NOT EXISTS audit_log (
+CREATE TABLE IF NOT EXISTS ah_audit_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     operator_id BIGINT NOT NULL COMMENT 'operator user id',
@@ -168,11 +169,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
     INDEX idx_audit_resource (resource_type, resource_id),
     INDEX idx_audit_operator (operator_id),
     INDEX idx_audit_time (created_at),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';
 
 -- 成本记录表
-CREATE TABLE IF NOT EXISTS cost_record (
+CREATE TABLE IF NOT EXISTS ah_cost_record (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     session_id VARCHAR(64) NOT NULL,
@@ -189,13 +190,13 @@ CREATE TABLE IF NOT EXISTS cost_record (
     INDEX idx_cost_session (session_id),
     INDEX idx_cost_agent (agent_id),
     INDEX idx_cost_time (recorded_at),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (agent_id) REFERENCES agent(id),
-    FOREIGN KEY (session_id) REFERENCES session(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (agent_id) REFERENCES ah_agent(id),
+    FOREIGN KEY (session_id) REFERENCES ah_session(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='成本记录表';
 
 -- 熔断规则表
-CREATE TABLE IF NOT EXISTS circuit_breaker_rule (
+CREATE TABLE IF NOT EXISTS ah_circuit_breaker_rule (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     provider VARCHAR(32) NOT NULL,
@@ -210,11 +211,11 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_rule (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_cb_tenant_provider_model (tenant_id, provider, model),
     INDEX idx_cb_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='熔断规则表';
 
 -- 配额表
-CREATE TABLE IF NOT EXISTS quota (
+CREATE TABLE IF NOT EXISTS ah_quota (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     scope VARCHAR(32) NOT NULL COMMENT 'GLOBAL/AGENT/USER',
@@ -231,11 +232,11 @@ CREATE TABLE IF NOT EXISTS quota (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_quota_tenant_scope (tenant_id, scope, scope_id),
     INDEX idx_quota_tenant_type (tenant_id, quota_type),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='配额表';
 
 -- 密钥表
-CREATE TABLE IF NOT EXISTS api_key (
+CREATE TABLE IF NOT EXISTS ah_api_key (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
@@ -253,12 +254,12 @@ CREATE TABLE IF NOT EXISTS api_key (
     INDEX idx_key_tenant (tenant_id),
     INDEX idx_key_user (user_id),
     INDEX idx_key_prefix (key_prefix),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (user_id) REFERENCES user_account(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (user_id) REFERENCES ah_user_account(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='API密钥表';
 
 -- 通知表
-CREATE TABLE IF NOT EXISTS notification (
+CREATE TABLE IF NOT EXISTS ah_notification (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
@@ -271,11 +272,12 @@ CREATE TABLE IF NOT EXISTS notification (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_notification_tenant_user (tenant_id, user_id, read),
     INDEX idx_notification_time (created_at),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (user_id) REFERENCES user_account(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (user_id) REFERENCES ah_user_account(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
+
 -- RAG knowledge base table
-CREATE TABLE IF NOT EXISTS knowledge_base (
+CREATE TABLE IF NOT EXISTS ah_knowledge_base (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -292,11 +294,11 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_kb_tenant (tenant_id),
     INDEX idx_kb_status (status),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG knowledge base';
 
 -- RAG document table
-CREATE TABLE IF NOT EXISTS rag_document (
+CREATE TABLE IF NOT EXISTS ah_rag_document (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     knowledge_base_id BIGINT NOT NULL,
@@ -312,12 +314,12 @@ CREATE TABLE IF NOT EXISTS rag_document (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_doc_kb (knowledge_base_id),
     INDEX idx_doc_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (knowledge_base_id) REFERENCES ah_knowledge_base(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG document';
 
 -- RAG document chunk table
-CREATE TABLE IF NOT EXISTS document_chunk (
+CREATE TABLE IF NOT EXISTS ah_document_chunk (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     knowledge_base_id BIGINT NOT NULL,
@@ -330,13 +332,13 @@ CREATE TABLE IF NOT EXISTS document_chunk (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_chunk_doc (document_id, chunk_index),
     INDEX idx_chunk_kb (knowledge_base_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id),
-    FOREIGN KEY (document_id) REFERENCES rag_document(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (knowledge_base_id) REFERENCES ah_knowledge_base(id),
+    FOREIGN KEY (document_id) REFERENCES ah_rag_document(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG document chunk';
 
 -- RAG vector embedding table
-CREATE TABLE IF NOT EXISTS vector_embedding (
+CREATE TABLE IF NOT EXISTS ah_vector_embedding (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     knowledge_base_id BIGINT NOT NULL,
@@ -349,13 +351,13 @@ CREATE TABLE IF NOT EXISTS vector_embedding (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_vec_kb (knowledge_base_id),
     UNIQUE KEY uk_vec_chunk (chunk_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (knowledge_base_id) REFERENCES knowledge_base(id),
-    FOREIGN KEY (document_id) REFERENCES rag_document(id),
-    FOREIGN KEY (chunk_id) REFERENCES document_chunk(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (knowledge_base_id) REFERENCES ah_knowledge_base(id),
+    FOREIGN KEY (document_id) REFERENCES ah_rag_document(id),
+    FOREIGN KEY (chunk_id) REFERENCES ah_document_chunk(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='RAG vector embedding';
 
-CREATE TABLE IF NOT EXISTS workflow_definition (
+CREATE TABLE IF NOT EXISTS ah_workflow_definition (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -367,10 +369,10 @@ CREATE TABLE IF NOT EXISTS workflow_definition (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_workflow_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Multi-Agent workflow definition';
 
-CREATE TABLE IF NOT EXISTS trace (
+CREATE TABLE IF NOT EXISTS ah_trace (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id BIGINT NOT NULL,
     session_id VARCHAR(64),
@@ -384,10 +386,10 @@ CREATE TABLE IF NOT EXISTS trace (
     INDEX idx_trace_tenant_started (tenant_id, started_at),
     INDEX idx_trace_session (session_id),
     INDEX idx_trace_workflow (workflow_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Execution trace';
 
-CREATE TABLE IF NOT EXISTS step_record (
+CREATE TABLE IF NOT EXISTS ah_step_record (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     trace_id VARCHAR(64) NOT NULL,
@@ -403,11 +405,11 @@ CREATE TABLE IF NOT EXISTS step_record (
     ended_at DATETIME,
     INDEX idx_step_trace (trace_id, started_at),
     INDEX idx_step_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (trace_id) REFERENCES trace(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (trace_id) REFERENCES ah_trace(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Trace step record';
 
-CREATE TABLE IF NOT EXISTS evaluation_run (
+CREATE TABLE IF NOT EXISTS ah_evaluation_run (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     name VARCHAR(128) NOT NULL,
@@ -419,10 +421,10 @@ CREATE TABLE IF NOT EXISTS evaluation_run (
     created_by VARCHAR(64) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_eval_run_tenant (tenant_id, created_at),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Offline evaluation run';
 
-CREATE TABLE IF NOT EXISTS evaluation_case_result (
+CREATE TABLE IF NOT EXISTS ah_evaluation_case_result (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     run_id BIGINT NOT NULL,
@@ -434,11 +436,11 @@ CREATE TABLE IF NOT EXISTS evaluation_case_result (
     error TEXT,
     INDEX idx_eval_case_run (run_id),
     INDEX idx_eval_case_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (run_id) REFERENCES evaluation_run(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (run_id) REFERENCES ah_evaluation_run(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Offline evaluation case result';
 
-CREATE TABLE IF NOT EXISTS llm_usage_audit (
+CREATE TABLE IF NOT EXISTS ah_llm_usage_audit (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     business_tag VARCHAR(128),
@@ -462,10 +464,10 @@ CREATE TABLE IF NOT EXISTS llm_usage_audit (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_llm_audit_tenant_created (tenant_id, created_at),
     INDEX idx_llm_audit_agent (agent_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='LLM usage audit';
 
-CREATE TABLE IF NOT EXISTS bot_binding (
+CREATE TABLE IF NOT EXISTS ah_bot_binding (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     channel VARCHAR(32) NOT NULL,
@@ -479,10 +481,10 @@ CREATE TABLE IF NOT EXISTS bot_binding (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_bot_binding_channel (tenant_id, channel, channel_bot_id),
     INDEX idx_bot_binding_tenant (tenant_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Enterprise bot channel binding';
 
-CREATE TABLE IF NOT EXISTS bot_webhook_event (
+CREATE TABLE IF NOT EXISTS ah_bot_webhook_event (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     channel VARCHAR(32) NOT NULL,
@@ -492,12 +494,12 @@ CREATE TABLE IF NOT EXISTS bot_webhook_event (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_bot_event_message (tenant_id, channel, message_id),
     INDEX idx_bot_event_binding (binding_id),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id),
-    FOREIGN KEY (binding_id) REFERENCES bot_binding(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id),
+    FOREIGN KEY (binding_id) REFERENCES ah_bot_binding(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Bot webhook idempotency event';
 
 -- Dify migration result table
-CREATE TABLE IF NOT EXISTS dify_migration_result (
+CREATE TABLE IF NOT EXISTS ah_dify_migration_result (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     tenant_id BIGINT NOT NULL,
     source_name VARCHAR(255) COMMENT 'original Dify resource name',
@@ -510,5 +512,5 @@ CREATE TABLE IF NOT EXISTS dify_migration_result (
     INDEX idx_dify_result_tenant (tenant_id),
     INDEX idx_dify_result_status (status),
     INDEX idx_dify_result_created (created_at),
-    FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+    FOREIGN KEY (tenant_id) REFERENCES ah_tenant(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Dify migration import result';

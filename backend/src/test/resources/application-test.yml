@@ -23,3 +23,6 @@ token-router:
 agenthub:
   identity:
     provider: mock
+  db:
+    encryption:
+      key: test-encryption-key-LSY0924

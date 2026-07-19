@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "dify_migration_result")
+@Table(name = "ah_dify_migration_result")
 public class DifyMigrationResultEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

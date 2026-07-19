@@ -3,7 +3,7 @@ package com.agenthub.infra.persistence.entity;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "evaluation_case_result")
+@Table(name = "ah_evaluation_case_result")
 public class EvaluationCaseResultEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

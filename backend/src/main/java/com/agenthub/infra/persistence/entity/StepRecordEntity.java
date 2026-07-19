@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "step_record")
+@Table(name = "ah_step_record")
 public class StepRecordEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

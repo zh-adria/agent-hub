@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "workflow_definition")
+@Table(name = "ah_workflow_definition")
 public class WorkflowDefinitionEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

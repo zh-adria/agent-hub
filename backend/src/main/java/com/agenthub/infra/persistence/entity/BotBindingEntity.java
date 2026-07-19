@@ -1,10 +1,11 @@
 package com.agenthub.infra.persistence.entity;
 
+import com.agenthub.infra.persistence.encryption.EncryptedStringConverter;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "bot_binding")
+@Table(name = "ah_bot_binding")
 public class BotBindingEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +24,7 @@ public class BotBindingEntity {
     private String agentId;
 
     @Column(name = "secret", length = 128)
+    @Convert(converter = EncryptedStringConverter.class)
     private String secret;
 
     @Column(name = "status", nullable = false)

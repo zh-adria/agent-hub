@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "rag_document")
+@Table(name = "ah_rag_document")
 public class RagDocumentEntity {
 
     @Id

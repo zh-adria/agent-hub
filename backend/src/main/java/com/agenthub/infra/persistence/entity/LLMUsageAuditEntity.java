@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "llm_usage_audit")
+@Table(name = "ah_llm_usage_audit")
 public class LLMUsageAuditEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

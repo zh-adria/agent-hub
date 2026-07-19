@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "bot_webhook_event", uniqueConstraints = {
+@Table(name = "ah_bot_webhook_event", uniqueConstraints = {
         @UniqueConstraint(name = "uk_bot_event_message", columnNames = {"tenant_id", "channel", "message_id"})
 })
 public class BotWebhookEventEntity {

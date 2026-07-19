@@ -4,7 +4,7 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "knowledge_base")
+@Table(name = "ah_knowledge_base")
 public class KnowledgeBaseEntity {
 
     @Id
