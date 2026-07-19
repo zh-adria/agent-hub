@@ -2,7 +2,6 @@ package com.agenthub.client.api;
 
 import com.agenthub.client.auth.AuthContext;
 import com.agenthub.client.auth.AuthenticatedPrincipal;
-import com.agenthub.client.auth.IamIdentityProperties;
 import com.agenthub.client.auth.IdentityService;
 import com.agenthub.client.auth.LogtoIdentityProperties;
 import com.agenthub.client.auth.LogtoOrganizationRoleMapper;
@@ -30,7 +29,6 @@ public class AuthApi {
     private static final Logger log = LoggerFactory.getLogger(AuthApi.class);
 
     private final RestTemplate restTemplate;
-    private final IamIdentityProperties iamProperties;
     private final IdentityService identityService;
     private final String identityProvider;
 
@@ -42,11 +40,9 @@ public class AuthApi {
     private LogtoOrganizationRoleMapper roleMapper;
 
     public AuthApi(
-            IamIdentityProperties properties,
             IdentityService identityService,
-            @Value("${agenthub.identity.provider:iam}") String identityProvider) {
+            @Value("${agenthub.identity.provider:logto}") String identityProvider) {
         this.restTemplate = new RestTemplate();
-        this.iamProperties = properties;
         this.identityService = identityService;
         this.identityProvider = identityProvider;
     }
@@ -63,28 +59,11 @@ public class AuthApi {
         if ("logto".equalsIgnoreCase(identityProvider)) {
             return logtoLogin(body);
         }
-        Map<String, Object> request = new LinkedHashMap<>(body);
-        request.putIfAbsent("clientId", iamProperties.getClientId());
-        request.putIfAbsent("grantType", "password");
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    iamProperties.loginUrl(),
-                    HttpMethod.POST,
-                    new HttpEntity<>(request, headers),
-                    Map.class);
-            return unwrapApiResult(response.getBody());
-        } catch (HttpStatusCodeException ex) {
-            throw new UnauthorizedException("IAM login failed: " + ex.getStatusCode());
-        } catch (RestClientException ex) {
-            throw new UnauthorizedException("IAM login unavailable");
-        }
+        throw new UnauthorizedException("Unsupported identity provider: " + identityProvider);
     }
 
     // ------------------------------------------------------------------
-    // Logto OAuth2 endpoints (no-op if Logto not configured)
+    // Logto OAuth2 endpoints
     // ------------------------------------------------------------------
 
     @GetMapping("/logto/authorize")
@@ -200,16 +179,6 @@ public class AuthApi {
             } catch (RestClientException ignored) {
                 // best-effort logout
             }
-        } else {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(cleanToken);
-            try {
-                restTemplate.exchange(
-                        iamProperties.logoutUrl(), HttpMethod.POST,
-                        new HttpEntity<>(null, headers), Map.class);
-            } catch (RestClientException ignored) {
-                // best-effort
-            }
         }
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("ok", true);
@@ -292,23 +261,6 @@ public class AuthApi {
             first = false;
         }
         return sb.toString();
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> unwrapApiResult(Map<?, ?> body) {
-        if (body == null) {
-            throw new UnauthorizedException("Empty IAM login response");
-        }
-        Object success = body.get("success");
-        if (Boolean.FALSE.equals(success)) {
-            Object message = body.get("message");
-            throw new UnauthorizedException(message == null ? "IAM login failed" : String.valueOf(message));
-        }
-        Object data = body.get("data");
-        if (data instanceof Map) {
-            return new LinkedHashMap<>((Map<String, Object>) data);
-        }
-        return new LinkedHashMap<>((Map<String, Object>) body);
     }
 
     private Map<String, Object> mockLogin(Map<String, Object> body) {

@@ -54,10 +54,6 @@ agenthub:
       fallback-to-scope-only: false
       jwks-cache-ttl-ms: ${AGENTHUB_LOGTO_JWKS_TTL_MS:3600000}
       management-api-base-url: ${AGENTHUB_LOGTO_MGMT_API:}
-    iam:
-      base-url: ${AGENTHUB_IAM_BASE_URL:http://iam:8080}
-      client-id: ${AGENTHUB_IAM_CLIENT_ID:agenthub}
-      client-secret: ${AGENTHUB_IAM_CLIENT_SECRET:}
   ai:
     embedding:
       external-enabled: ${AGENTHUB_EMBEDDING_EXTERNAL_ENABLED:true}

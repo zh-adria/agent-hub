@@ -56,10 +56,6 @@ agenthub:
       fallback-to-scope-only: false
       jwks-cache-ttl-ms: 3600000
       management-api-base-url: ${AGENTHUB_LOGTO_MGMT_API:}
-    iam:
-      base-url: http://127.0.0.1:8080/iam
-      client-id: demo-client
-      client-secret: ENC(3g4vZdXUIXv4p88Ijs4jMqVuVanlbr2Xx+a1DnOj6Pc=)
   ai:
     embedding:
       external-enabled: false
