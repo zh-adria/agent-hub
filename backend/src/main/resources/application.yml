@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:mysql://mysql6.sqlpub.com:3311/dev_2026?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
     username: dev_2026
-    password: uF5RbUeRzGxb9qgG
+    password: ENC(Xnj/c/rYvcBYYViSGQOZdcZjS93Fww2hLYKuU9IP6FEczEFDeA+tFw==)
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -33,17 +33,18 @@ spring:
     port: 6379
     timeout: 3000ms
 
+# Jasypt encryption: decryptor password from env var
+jasypt:
+  encryptor:
+    password: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
+
 # LLM Gateway
 token-router:
   base-url: http://127.0.0.1:8082
   completion-path: /api/chat/completions
   stream-completion-path: /api/chat/completions/stream
 
-# Database encryption
 agenthub:
-  db:
-    encryption:
-      key: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
   identity:
     provider: logto
     logto:
@@ -58,7 +59,7 @@ agenthub:
     iam:
       base-url: http://127.0.0.1:8080/iam
       client-id: demo-client
-      client-secret: demo-secret
+      client-secret: ENC(3g4vZdXUIXv4p88Ijs4jMqVuVanlbr2Xx+a1DnOj6Pc=)
   ai:
     embedding:
       external-enabled: false

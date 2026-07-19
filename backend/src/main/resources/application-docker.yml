@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:mysql://mysql6.sqlpub.com:3311/dev_2026?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&createDatabaseIfNotExist=true
     username: dev_2026
-    password: uF5RbUeRzGxb9qgG
+    password: ${AGENTHUB_MYSQL_PASSWORD:ENC(utE3c/kW3Sp+I1qSjaWOck+dp/EQSZVE)}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -26,6 +26,11 @@ token-router:
   completion-path: /api/chat/completions
   stream-completion-path: /api/chat/completions/stream
 
+# Jasypt encryption
+jasypt:
+  encryptor:
+    password: ${AGENTHUB_DB_ENCRYPTION_KEY:LSY@!0924}
+
 agenthub:
   db:
     encryption:
@@ -44,7 +49,7 @@ agenthub:
     iam:
       base-url: http://host.docker.internal:8080/iam
       client-id: demo-client
-      client-secret: demo-secret
+      client-secret: ENC(3g4vZdXUIXv4p88Ijs4jMqVuVanlbr2Xx+a1DnOj6Pc=)
   ai:
     embedding:
       external-enabled: true

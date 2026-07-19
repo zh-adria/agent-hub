@@ -63,6 +63,13 @@
             <version>9.37.2</version>
         </dependency>
 
+        <!-- Jasypt: Spring Boot property encryption -->
+        <dependency>
+            <groupId>com.github.ulisesbocchio</groupId>
+            <artifactId>jasypt-spring-boot-starter</artifactId>
+            <version>2.1.2</version>
+        </dependency>
+
         <!-- Validation -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
